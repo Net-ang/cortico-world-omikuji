@@ -1,0 +1,267 @@
+/*
+ * 「今日一签」面板样式。
+ *
+ * 只用宿主暴露的 CSS 变量，跟着主题走；变量缺失时退回中性色。
+ * 不写死深色/浅色，也不接管全局选择器。
+ */
+
+.om-app {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 4px 2px 12px;
+}
+
+.om-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.om-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink, inherit);
+}
+
+.om-meta {
+  margin: 0;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-dim, #888);
+}
+
+/* ---------------------------------------------------------------- 扣着的牌 */
+
+.om-face {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 34px 16px;
+  border: 1px dashed var(--line-2, rgba(128, 128, 128, 0.4));
+  border-radius: var(--radius-lg, 14px);
+  background: var(--paper-2, rgba(128, 128, 128, 0.06));
+}
+
+.om-face-lead {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-soft, #666);
+}
+
+.om-err {
+  margin: 0;
+  font-size: 13px;
+  color: var(--danger, #c0392b);
+}
+
+/* ------------------------------------------------------------------ 按钮 */
+
+.om-btn {
+  font: inherit;
+  font-size: 13px;
+  padding: 7px 14px;
+  border: 1px solid var(--line-2, rgba(128, 128, 128, 0.45));
+  border-radius: var(--radius-md, 9px);
+  background: var(--paper, transparent);
+  color: var(--ink, inherit);
+  cursor: pointer;
+}
+
+.om-btn:hover:not(:disabled) {
+  background: var(--hover, rgba(128, 128, 128, 0.12));
+}
+
+.om-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.om-btn-primary {
+  border-color: transparent;
+  background: var(--accent, #4a86e8);
+  color: var(--on-accent, #fff);
+}
+
+.om-btn-primary:hover:not(:disabled) {
+  filter: brightness(1.06);
+  background: var(--accent, #4a86e8);
+}
+
+/* ------------------------------------------------------------------ 牌面 */
+
+.om-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px 12px;
+  border: 1px solid var(--line, rgba(128, 128, 128, 0.3));
+  border-radius: var(--radius-lg, 14px);
+  background: var(--paper, transparent);
+}
+
+.om-card-past {
+  border-style: dashed;
+}
+
+.om-card-top {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.om-lot {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-dim, #888);
+}
+
+.om-tier {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink, inherit);
+}
+
+.om-score {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-soft, #666);
+}
+
+.om-tag {
+  margin-left: auto;
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--paper-2, rgba(128, 128, 128, 0.12));
+  color: var(--ink-dim, #888);
+}
+
+.om-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.om-poem {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--ink, inherit);
+}
+
+.om-gloss,
+.om-written {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--ink-soft, #555);
+}
+
+.om-written {
+  font-size: 15px;
+  color: var(--ink, inherit);
+}
+
+.om-written-by {
+  margin: 0;
+  font-size: 11px;
+  color: var(--ink-dim, #888);
+}
+
+.om-pending {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--ink-soft, #666);
+}
+
+.om-fact {
+  display: flex;
+  gap: 10px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.om-fact-k {
+  flex: 0 0 4.5em;
+  color: var(--ink-dim, #888);
+}
+
+.om-fact-v {
+  color: var(--ink, inherit);
+}
+
+.om-actions {
+  display: flex;
+  gap: 8px;
+  padding-top: 2px;
+}
+
+.om-disclaimer {
+  margin: 0;
+  padding-top: 2px;
+  font-size: 11px;
+  color: var(--ink-dim, #888);
+}
+
+/* ------------------------------------------------------------------ 七天 */
+
+.om-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.om-strip-title {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--ink-dim, #888);
+}
+
+.om-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.om-chip {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px 9px;
+  font: inherit;
+  font-size: 11px;
+  border: 1px solid var(--line, rgba(128, 128, 128, 0.3));
+  border-radius: var(--radius-md, 9px);
+  background: transparent;
+  color: var(--ink-soft, #666);
+  cursor: pointer;
+}
+
+.om-chip:hover {
+  background: var(--hover, rgba(128, 128, 128, 0.12));
+}
+
+.om-chip-on {
+  border-color: var(--accent, #4a86e8);
+  color: var(--ink, inherit);
+}
+
+.om-chip-date {
+  font-variant-numeric: tabular-nums;
+}
+
+.om-chip-tier {
+  font-size: 12px;
+  color: var(--ink, inherit);
+}
+
+.om-chip-mark {
+  font-size: 10px;
+  color: var(--accent, #4a86e8);
+}

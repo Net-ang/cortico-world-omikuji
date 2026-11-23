@@ -1,0 +1,10 @@
+node_modules/
+.cortico-src/
+.tmp-*
+.token
+*.log
+
+# 包内的 node_modules 与开发临时目录
+cortico-world-omikuji/node_modules/
+cortico-world-omikuji/.cortico-src/
+cortico-world-omikuji/.tmp-*
