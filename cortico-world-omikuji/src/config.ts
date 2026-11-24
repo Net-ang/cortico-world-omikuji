@@ -5,9 +5,10 @@ import type { WordingMode } from './daily.ts';
 export interface OmikujiConfigSection {
   enabled: boolean;
   /**
-   * 覆盖本机盐。留空就用 dataDir 里保存的那一个；填了就按填的算。
+   * 固定的本机盐，现在只当回落用。
    *
-   * 用来在别的机器上复现同一批签，或者在手记账本里固定一台机器的签。
+   * 每天的签用它当天现摇的随机盐（`omikuji-days.json`，只留七天）；七天以外的日期没有当日盐了，
+   * 才回落到这个固定盐去算。留空就用自动生成的那一个。
    */
   salt: string;
   /** 措辞归谁写：`builtin` 用签库成句，`pet` 由桌宠自己写并落盘。 */
@@ -41,8 +42,8 @@ export const OMIKUJI_CONFIG_GROUP: ConfigGroup = {
       },
       'worlds.omikuji.salt': {
         type: 'string',
-        title: '本机盐覆盖',
-        description: '留空则使用数据目录里自动生成的那一个。改动会改变今天以及过去每一天的签。',
+        title: '固定本机盐（回落用）',
+        description: '每天的签用当天现摇的随机盐（只留七天）；七天以外的日期才回落到这个固定盐。留空用自动生成的那一个。',
         'x-hot': true,
       },
     },

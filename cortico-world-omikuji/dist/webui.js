@@ -98,12 +98,16 @@ export default {
           button.textContent = busy ? T.drawing : idleLabel;
         };
 
-        const load = async (date, button, idleLabel) => {
+        /*
+         * `draw` 才是抽签：那一天还没有盐就摇一个真随机的出来。
+         * 打开面板、看七天、回看某一天都走 `snapshot`，只读，不产生随机。
+         */
+        const load = async (date, button, idleLabel, method = 'snapshot') => {
           setBusy(button, true, idleLabel);
           try {
-            snapshot = await ctx.invoke('snapshot', date ? [date] : []);
+            snapshot = await ctx.invoke(method, date ? [date] : []);
             // 今天这一页翻开过就不再扣回去；回看别的日子不动这个标记。
-            if (!date) ctx.memo.set('drawn', true);
+            if (method === 'draw' && !date) ctx.memo.set('drawn', true);
             render();
           } catch (err) {
             stage.replaceChildren();
@@ -111,7 +115,7 @@ export default {
             box.append(el('p', 'om-err', `${T.failed}：${err && err.message ? err.message : String(err)}`));
             const retry = el('button', 'om-btn', T.draw);
             retry.type = 'button';
-            retry.addEventListener('click', () => void load(date, retry, T.draw), { signal: ctx.signal });
+            retry.addEventListener('click', () => void load(date, retry, T.draw, method), { signal: ctx.signal });
             box.append(retry);
             stage.append(box);
             ctx.memo.set('drawn', false);
@@ -126,7 +130,7 @@ export default {
           box.append(el('p', 'om-face-lead', T.faceLead));
           const button = el('button', 'om-btn om-btn-primary', T.draw);
           button.type = 'button';
-          button.addEventListener('click', () => void load(undefined, button, T.draw), { signal: ctx.signal });
+          button.addEventListener('click', () => void load(undefined, button, T.draw, 'draw'), { signal: ctx.signal });
           box.append(button);
           stage.append(box);
         };

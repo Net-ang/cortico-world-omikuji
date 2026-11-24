@@ -4,7 +4,9 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { loadSignContent } from '../src/content.ts';
 import { drawSign } from '../src/daily.ts';
+import { readDaySalt } from '../src/daysalt.ts';
 import { saveWording } from '../src/wording.ts';
+import { nowIso } from 'cortico/core/util.ts';
 import { PANEL_ID, panelInvoke, panelSnapshot, type PanelDeps } from '../src/panel.ts';
 import { OmikujiWorld } from '../src/world.ts';
 
@@ -16,7 +18,13 @@ const TODAY = '2026-11-23';
 function deps(mode: 'builtin' | 'pet', dir: string): PanelDeps {
   const cfg = { enabled: true, salt: SALT, wording: mode };
   const world = new OmikujiWorld({ cfg, timezone: 'Asia/Shanghai', dataDir: dir, content });
-  return { mode, dataDir: dir, today: TODAY, signFor: (date: string) => world.signFor(date) };
+  return {
+    mode,
+    dataDir: dir,
+    today: TODAY,
+    signFor: (date: string) => world.signFor(date),
+    drawFor: (date: string) => world.drawFor(date),
+  };
 }
 
 function freshDir(name: string): string {
@@ -26,8 +34,9 @@ function freshDir(name: string): string {
   return dir;
 }
 
-test('面板快照给的就是今天那张签', () => {
-  const snap = panelSnapshot(deps('builtin', freshDir('builtin')));
+test('面板快照给的就是那天那张签（只读，不产生随机）', () => {
+  const dir = freshDir('builtin');
+  const snap = panelSnapshot(deps('builtin', dir));
   const expected = drawSign(TODAY, SALT, content);
   assert.equal(snap.today, TODAY);
   assert.equal(snap.date, TODAY);
@@ -36,6 +45,7 @@ test('面板快照给的就是今天那张签', () => {
   assert.equal(snap.sign.tierLabel, expected.tierLabel);
   assert.equal(snap.sign.poem, expected.poem);
   assert.equal(snap.written, null, 'builtin mode never reports pet wording');
+  assert.equal(readDaySalt(dir, TODAY), null, 'snapshot 不该摇盐');
 });
 
 test('七天回看：今天在最前，逐天倒序', () => {
@@ -83,10 +93,28 @@ test('面板方法只认 snapshot，别的都报错', async () => {
   const past = (await panelInvoke(deps('builtin', dir), PANEL_ID, 'snapshot', ['2026-11-20'])) as { date: string };
   assert.equal(past.date, '2026-11-20');
 
-  await assert.rejects(panelInvoke(deps('builtin', dir), PANEL_ID, 'draw', []), /没有这个方法/);
+  // 只认 snapshot 与 draw；别的名字一律报错
+  await assert.rejects(panelInvoke(deps('builtin', dir), PANEL_ID, 'refresh', []), /没有这个方法/);
   await assert.rejects(panelInvoke(deps('builtin', dir), 'other', 'snapshot', []), /没有这个面板/);
   await assert.rejects(panelInvoke(deps('builtin', dir), PANEL_ID, 'snapshot', [20261123]), TypeError);
   await assert.rejects(panelInvoke(deps('builtin', dir), PANEL_ID, 'snapshot', ['2026-02-30']), RangeError);
+  await assert.rejects(panelInvoke(deps('builtin', dir), PANEL_ID, 'draw', ['2026-02-30']), RangeError);
+});
+
+test('面板只有 draw 才摇盐：snapshot 和回看都不摇', async () => {
+  const dir = freshDir('panel-draw');
+  const d = deps('builtin', dir);
+  const realToday = nowIso('Asia/Shanghai').slice(0, 10);
+
+  const read = (await panelInvoke(d, PANEL_ID, 'snapshot', [realToday])) as { sign: unknown; date: string };
+  assert.equal(readDaySalt(dir, realToday), null, 'snapshot 不该摇盐');
+  assert.equal(read.date, realToday);
+
+  const drawn = (await panelInvoke(d, PANEL_ID, 'draw', [realToday])) as { sign: unknown };
+  assert.notEqual(readDaySalt(dir, realToday), null, 'draw 必须摇出盐来');
+
+  const after = (await panelInvoke(d, PANEL_ID, 'snapshot', [realToday])) as { sign: unknown };
+  assert.deepEqual(after.sign, drawn.sign, '抽过之后读到的是抽出的那张');
 });
 
 test('World 的 webUi 声明了面板并接上 invoke', async () => {

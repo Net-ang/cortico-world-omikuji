@@ -89,7 +89,13 @@ function mountPanel(dir, mode, { fresh = true } = {}) {
   if (fresh) rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
   const world = new OmikujiWorld({ cfg: { enabled: true, salt: SALT, wording: mode }, timezone: 'Asia/Shanghai', dataDir: dir, content });
-  const deps = { mode, dataDir: dir, today: TODAY, signFor: (date) => world.signFor(date) };
+  const deps = {
+    mode,
+    dataDir: dir,
+    today: TODAY,
+    signFor: (date) => world.signFor(date),
+    drawFor: (date) => world.drawFor(date),
+  };
   const memo = new Map();
   const ctx = {
     pageId: 'world:omikuji',

@@ -54,7 +54,10 @@ export interface PanelDeps {
   mode: WordingMode;
   dataDir: string;
   today: string;
+  /** 只读：那天抽过就是当时那张，没抽过按固定本机盐算。 */
   signFor(date: string): DailySign;
+  /** 真抽签：那天还没有当日盐就摇一个真随机的并落盘。 */
+  drawFor(date: string): DailySign;
 }
 
 const toSign = (sign: DailySign): PanelSign => ({
@@ -112,7 +115,12 @@ export function panelSnapshot(deps: PanelDeps, wanted?: string): PanelSnapshot {
   };
 }
 
-/** 面板方法入口。只认一个方法，其余按面板名报错，不给半个支持。 */
+/**
+ * 面板方法入口。
+ *
+ * `snapshot` 只读：打开面板、看七天横排、回看某一天都不摇盐。
+ * `draw` 才是抽签——它会给那一天摇一个真随机的盐并落盘。面板上只有「抽今天的签」按钮走这条路。
+ */
 export async function panelInvoke(
   deps: PanelDeps,
   panel: string,
@@ -120,10 +128,16 @@ export async function panelInvoke(
   args: unknown[] = [],
 ): Promise<unknown> {
   if (panel !== PANEL_ID) throw new Error(`没有这个面板：${panel}`);
-  if (method === 'snapshot') {
-    const wanted = args[0];
-    if (wanted !== undefined && typeof wanted !== 'string') throw new TypeError('snapshot 的日期必须是字符串');
-    return panelSnapshot(deps, wanted);
+
+  const wanted = args[0];
+  if (wanted !== undefined && typeof wanted !== 'string') throw new TypeError('日期必须是字符串');
+  if (wanted !== undefined && !isDateIso(wanted)) throw new RangeError(`not a calendar date: ${wanted}`);
+  const date = wanted ?? deps.today;
+
+  if (method === 'snapshot') return panelSnapshot(deps, date);
+  if (method === 'draw') {
+    deps.drawFor(date);
+    return panelSnapshot(deps, date);
   }
   throw new Error(`今日一签没有这个方法：${method}`);
 }

@@ -15,6 +15,7 @@ import {
   type WordingMode,
 } from './daily.ts';
 import { ensureSalt } from './salt.ts';
+import { materializeDaySalt, readDaySalt } from './daysalt.ts';
 import { readWording, saveWording } from './wording.ts';
 import { panelInvoke, PANEL_ID, type PanelDeps } from './panel.ts';
 import type { OmikujiConfigSection } from './config.ts';
@@ -108,7 +109,8 @@ export class OmikujiWorld implements World {
         if (date !== undefined && typeof date !== 'string') {
           throw new TypeError('date must be a YYYY-MM-DD string');
         }
-        const sign = this.signFor(date);
+        // 真抽签才摇当天的盐；读（前缀、面板打开、回看）都不摇。
+        const sign = this.drawFor(date);
         if (this.wording() === 'builtin') return formatSign(sign);
         const stored = readWording(this.#opts.dataDir, sign.date);
         if (stored) {
@@ -195,11 +197,25 @@ export class OmikujiWorld implements World {
 
   async stop(): Promise<void> {}
 
-  /** 指定日期的签；不传日期就是部署时区里的今天。 */
+  /**
+   * 读某一天的签，**不产生随机、不写盘**。
+   *
+   * 那天抽过（有当日盐）就是当时那张；没抽过就按固定本机盐算——等同于旧版的「日期 + 固定盐」。
+   */
   signFor(date?: string): DailySign {
-    const target = date ?? this.#today();
-    if (!isDateIso(target)) throw new RangeError(`date must be YYYY-MM-DD, got ${JSON.stringify(target)}`);
-    return drawSign(target, this.#salt(), this.#opts.content);
+    const target = this.#resolveDate(date);
+    return drawSign(target, this.#saltFor(target, { create: false }), this.#opts.content);
+  }
+
+  /**
+   * 真抽签：今天还没有当日盐就现摇一个真随机的并落盘，然后算签。
+   *
+   * 只有走这条路才会产生随机；系统前缀、面板打开、七天回看都走 `signFor()`。
+   * 抽的是别的日子时不摇新盐——那一天的随机性属于那一天真正被抽的时刻。
+   */
+  drawFor(date?: string): DailySign {
+    const target = this.#resolveDate(date);
+    return drawSign(target, this.#saltFor(target, { create: true }), this.#opts.content);
   }
 
   /** 现读配置：改了措辞模式或盐，下一次调用就生效。 */
@@ -207,22 +223,45 @@ export class OmikujiWorld implements World {
     return asWordingMode(this.#opts.cfg.wording);
   }
 
-  /** 面板用的依赖；面板只读，签名与盐都从当天现读。 */
+  /** 面板用的依赖；面板只读，抽签由面板的 `draw` 方法显式走 `drawFor`。 */
   #panelDeps(): PanelDeps {
     return {
       mode: this.wording(),
       dataDir: this.#opts.dataDir,
       today: this.#today(),
       signFor: (date: string) => this.signFor(date),
+      drawFor: (date: string) => this.drawFor(date),
     };
+  }
+
+  #resolveDate(date?: string): string {
+    const target = date ?? this.#today();
+    if (!isDateIso(target)) throw new RangeError(`date must be YYYY-MM-DD, got ${JSON.stringify(target)}`);
+    return target;
   }
 
   #today(): string {
     return nowIso(this.#opts.timezone).slice(0, 10);
   }
 
-  /** 配置里填了就用填的，否则用落盘的本机盐。 */
-  #salt(): string {
+  /**
+   * 某一天的盐。
+   *
+   * `create: true` 只在真抽签、而且抽的正是**今天**时才摇：那天的随机盐属于「那天抽的那次」，
+   * 事后补抽别的日子不产生新随机，按既有规则读（当日盐若有，否则固定本机盐）。
+   * 落盘时顺手裁掉七天前的条目。
+   */
+  #saltFor(date: string, opts: { create: boolean }): string {
+    const stored = readDaySalt(this.#opts.dataDir, date);
+    if (stored) return stored;
+    if (opts.create && date === this.#today()) {
+      return materializeDaySalt(this.#opts.dataDir, date, nowIso(this.#opts.timezone)).salt;
+    }
+    return this.#fixedSalt();
+  }
+
+  /** 固定的本机盐：配置填了就用填的，否则用落盘的那一个。它现在只当回落与「两机对齐」用。 */
+  #fixedSalt(): string {
     const override = (this.#opts.cfg.salt ?? '').trim();
     if (override) return override;
     this.#storedSalt ??= ensureSalt(this.#opts.dataDir, nowIso(this.#opts.timezone));

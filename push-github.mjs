@@ -41,9 +41,9 @@ if (!repoArg || !/^[^/\s]+\/[^/\s]+$/.test(repoArg)) {
 
 // ----------------------------------------------------------------- 收集文件
 
-/** 这些目录/文件不进仓库。 */
+/** 这些目录/文件不进仓库。点开头的一次性脚本（.diff.mjs 之类）也别混进去，只留 .gitignore。 */
 const SKIP_DIRS = new Set(['node_modules', '.cortico-src', '.git', '.tmp-zip']);
-const SKIP_FILE = /^(\.token|.*\.log|\.tmp-.*)$/;
+const SKIP_FILE = /^(?:\.(?!gitignore)[^/]*|.*\.log)$/;
 
 function collect(dir) {
   const out = [];
