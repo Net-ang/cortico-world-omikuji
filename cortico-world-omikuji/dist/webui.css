@@ -495,6 +495,85 @@
   color: var(--om-gold);
 }
 
+/* 今天还没抽：这一格写「未抽」，不写一个抽完就会变的分数 */
+.om-chip-undrawn {
+  color: var(--om-ink-dim);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+
+/* 七天末尾那个「更多…」：虚线框 + 金色，一眼看出它不是某一天 */
+.om-chip-more {
+  border-style: dashed;
+  border-color: var(--om-gold-dim);
+  color: var(--om-gold);
+  align-self: stretch;
+  justify-content: center;
+}
+
+.om-chip-more:hover {
+  border-color: var(--om-gold);
+  background: rgba(224, 189, 124, 0.12);
+}
+
+/* ------------------------------------------------------------------ 更多… */
+
+/*
+ * 「更多…」点开的收束弹窗：整页一层暗幕 + 中间一句话。
+ * 自己搭一层是因为宿主没给面板开弹窗的接口，而这里只是把话说完，不需要任何交互。
+ * 用 position: fixed 盖住面板可视区域；挂在 .om-shell 里以便继承那套色板变量。
+ */
+.om-more {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(6, 7, 10, 0.66);
+  backdrop-filter: blur(6px) saturate(1.05);
+  animation: om-fade-in 160ms ease-out both;
+  cursor: default;
+}
+
+@keyframes om-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.om-more-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  width: min(28em, 100%);
+  padding: 24px 22px 18px;
+  border: 1px solid var(--om-hair);
+  border-radius: var(--radius-lg, 14px);
+  background: var(--om-card-solid);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
+  text-align: center;
+  animation: om-more-in 200ms ease-out both;
+}
+
+@keyframes om-more-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+.om-more-text {
+  margin: 0;
+  font-family: var(--om-font, "KaiTi", "STKaiti", serif);
+  font-size: 1.143em;
+  font-weight: 500;
+  line-height: 1.95;
+  letter-spacing: 0.04em;
+  color: var(--om-ink);
+  text-shadow: none;
+  text-wrap: pretty;
+}
+
 /* ------------------------------------------------------------------ 抽签 */
 
 /*

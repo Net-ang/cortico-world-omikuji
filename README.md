@@ -82,18 +82,23 @@ npm publish --registry=https://registry.npmjs.org/ --cache E:\DSH-PET\.npm-cache
 
 - **显示名**「精灵日签」；包名 `cortico-world-omikuji`；World id `omikuji`；`cortico.api: 6`。
 - **种子** = 每天的**真随机盐**：只有**真抽签**（工具 / 面板「抽今天的签」）时才 `crypto.randomBytes` 现摇一个，落盘 `omikuji-days.json`，只留七天。读（系统前缀、打开面板、回看）**不产生随机**。
-- **没抽过的日子 = 旧版那套**：那天没人抽签，事后回看它就用「日期 + 固定本机盐（`omikuji-salt.json`）」，与 0.1.3 算出来的一致；七天以外的日期同理。
+- **不抽就不给任何数**（0.4.4）：今天还没抽签时，快照里的 `sign` 是 `null`、七天横排今天那格没有分数，工具侧 `peek` 也不报数。抽签那一刻才定签，定签之前任何地方都不存在那天的数字。
+- **第二天补录**（0.4.4）：挂载时与每 10 分钟巡检时，把七天窗口里「过去了却没记录」的日子用「日期 + 固定本机盐」定下来落盘（`source: "fallback"`），之后冻结——换配置里的盐也不再变；真抽过的（`source: "draw"`）一个字节不改；**今天永远不补**。补录出来的签与 0.1.3 口径逐字一致。
 - **两种措辞模式**：`wording: "pet"`（默认，桌宠按约束自己写，当天首次落盘、同日只认第一份）／`"builtin"`（签库成句，不花模型）。
-- **面板「今日一签」**：牌扣着 →「抽今天的签」翻开 → 七天横排回看。**读是纯的**：只有「抽」那一次才给当天落盐；没抽过的日期、超出七天的旧日期，一律用「日期 + 本机固定盐」算，结果与 0.1.3 逐字节一致。
+- **面板「今日一签」**：开屏就取快照（背景、头像、字体、日期、七天横排立刻在）；今天没抽时中间只摆扣着的牌，抽过之后才给牌面。
 - **免责句**只在面板牌面上，回执里不带（回执每轮都进上下文，重复会变噪音）。
+- **抽签前不报分数**（0.4.3）：分数只从工具回执出。系统前缀是静态的、挂载事件在没抽时只说「还没抽」、面板没抽时只摆扣着的牌并写「未抽」。因为前缀不会随抽签刷新，提前报分就会在上下文里留下两套说法。
+- **每天没抽签会提醒**（0.4.3）：9 点之后仍未抽，每 10 分钟看一眼状态，一天提醒一次；提醒走 `piggyback`，不自己唤醒模型。
 - **名字不绑形象**：文案用的意象是船/灯/雨/菜畦这类，不指向任何具体角色——用户家的桌宠可能是任何形象。
 
 ## 已知缺口
 
-- **0.4.1 在真机上验过，挂了**：抽签动画、动态背景、头像三样都不出现。原因见下面第 5 条坑。`0.4.2` 修的就是它，装上后要再验一遍。
+- **0.4.1 在真机上验过，挂了**：抽签动画、动态背景、头像三样都不出现。原因见下面第 5 条坑。`0.4.2` 修的就是它；0.4.2 已发到 npm/GitHub 并装进本机扩展目录，**等宿主重启**后跑 `tools/host-verify.ts` 复核。
+- **0.4.3 未发布、已作废**：本地产物已删，内容并入 `0.4.4`（避免「同号不同内容」）。
+- **0.4.4 待发布**：按 Linux 真机反馈修了「抽签前后签突变」「开屏空白」「record 热切换」「开机白跑一轮」，加了「今天没抽签会提醒」，并把「不抽就不给任何数」做严格了、补上「第二天用固定盐补录」。逐条回复见 `反馈\回复-0.4.4.md`。
 - 没有 `screenshots`——市场详情页的图位还是空的（`icon` 已经有了）。
 - 市集 catalog 还停在 `0.1.3`：`cortico-extensions` 的同步 Action 按计划跑，等它把最新版抓上去。
-- 真机跑通后：摘掉 `experimental`、补 `screenshots`，再升一号。
+- 真机确认「动画会播、背景是那段 mp4、头像出来」之后：摘掉 `experimental`、补 `screenshots`，再升一号。
 
 ## 环境上的坑
 
@@ -109,7 +114,8 @@ npm publish --registry=https://registry.npmjs.org/ --cache E:\DSH-PET\.npm-cache
 
    它只是开发工具链的东西，不进 `files`、不影响发布。干净的机器上想重建 `.cortico-src`：`Copy-Item node_modules\cortico .cortico-src -Recurse`（先删 junction，再复制真包）。
 5. **`WorldContext.packageDir` 是 bot 的包目录，不是本 World 的包目录**（框架原文：「bot 代码包目录，供包内模板与资产使用」）。照它拼 `assets/draw.mp4` 在自己机器上测不出来（自检工具显式传了正确目录），一装进真宿主就全灭：真机里它指向 fatfish 的包。**包内素材一律用 `import.meta.url` 反推**（见 `src/assets.ts` 的 `OWN_PACKAGE_DIR`），`ctx.packageDir` 只当兜底。签库 `data/signs.json` 一直是对的，因为它本来就走的 `import.meta.url`。
-4. **PowerShell 5.1 + GitHub API 的三个连环坑**（发 0.4.1 时踩的，写 Release 用得上）：
+6. **系统前缀（和工具表）不是每轮重建的**：只有挂载/卸载 World、改可见性、手动「重载前缀」、重启才重建（`core.ts:693`、`core.ts:720`、`bot.ts:1105`）。所以 `envPromptVars()` 与 `tools()` 里**只能放不会变的东西**——把今天的分数或措辞模式写进去，抽签/改配置之后前缀里留的就是旧值，模型上下文会出现两套说法。`modulePrefixDrift()` 只用来提示「前缀已漂移」，没有任何地方凭它自动重建。同理，`tools()` 别按配置增删工具（改配置不会让工具表跟上）。
+7. **PowerShell 5.1 + GitHub API 的三个连环坑**（发 0.4.1 时踩的，写 Release 用得上）：
    - `gh release create -d '{...}'` 这种带 JSON 的单引号参数会被 PowerShell 5.1 吃掉双引号，JSON 变废。**改成把 body 写进文件，用 `--data-binary @file` 提交**。
    - `Invoke-RestMethod` 的消息体里带中文会 422，纯 ASCII 就 200。同样的错在 Release 资产名上也存在：**资产 `name` 必须是 ASCII**，中文放进 `label`。
    - 别拿 PowerShell 的文本替换去改 UTF-8 源文件（会把中文写成乱码，`src/world.ts` 已经中过一次）；改文档用编辑器/写入工具，或 `[System.IO.File]::ReadAllText` + `WriteAllText` 并显式指定 UTF8。
@@ -121,3 +127,14 @@ npm publish --registry=https://registry.npmjs.org/ --cache E:\DSH-PET\.npm-cache
 | 设计怎么定的、契约细节、常用命令 | `cortico-world-omikuji\README.md` |
 | 怎么发布、怎么回滚、发完补什么 | `cortico-world-omikuji\PUBLISH.md` |
 | 每个版本改了什么、产物在哪 | `发布记录.md` |
+
+## 真机验收
+
+装完之后在包目录下跑（只读，不改任何东西）：
+
+```powershell
+cd E:\DSH-PET\精灵日签\cortico-world-omikuji
+node --experimental-transform-types tools/host-verify.ts
+```
+
+它查：扩展目录里声明的版本、`node_modules` 里实际装的版本、已安装包里的三个媒体素材、`src/assets.ts` 在不在，以及**本次进程日志**里还有没有「找不到素材」。最后一项只在宿主重启后才有意义——旧进程留下的记录不算数。

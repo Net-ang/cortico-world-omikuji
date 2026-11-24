@@ -1,6 +1,6 @@
 {
   "name": "cortico-world-omikuji",
-  "version": "0.4.2",
+  "version": "0.4.4",
   "type": "module",
   "description": "精灵日签：每天一张签。种子由日期与本机盐合成，同机同日恒定，换机器就不同。措辞可用内置签库，也可以让桌宠自己写并落盘。",
   "author": {
@@ -70,7 +70,8 @@
     "preview": "node tools/preview.ts",
     "describe:self": "node --experimental-transform-types tools/describe.ts",
     "check:client": "node --experimental-transform-types tools/check-client.mjs",
-    "smoke:panel": "node --experimental-transform-types tools/dom-smoke.mjs"
+    "smoke:panel": "node --experimental-transform-types tools/dom-smoke.mjs",
+    "verify:host": "node --experimental-transform-types tools/host-verify.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

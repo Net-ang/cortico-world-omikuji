@@ -2,7 +2,7 @@
   "tools": [
     {
       "name": "omikuji_draw",
-      "description": "Draw the daily fortune slip. With no arguments it returns today's slip; pass date (YYYY-MM-DD) to read the slip of another day. The slip for a date is fixed on this machine, so drawing it again never changes it. In built-in wording mode the reply is the finished slip: lot number, grade, score, verse, reading, what to favour, what to avoid and a lucky colour. In pet wording mode the reply is the facts plus writing constraints instead, and omikuji_record stores the slip you write.",
+      "description": "Draw the daily fortune slip. With no arguments it returns today's slip; pass date (YYYY-MM-DD) to read the slip of another day. The slip for a date is fixed on this machine, so drawing it again never changes it. In built-in wording mode the reply is the finished slip: lot number, grade, score, verse, reading, what to favour, what to avoid and a lucky colour. In pet wording mode the reply is the facts plus writing constraints instead, and omikuji_record stores the slip you write. Pass peek: true to find out whether today's slip has been drawn yet without drawing it.",
       "parameters": {
         "type": "object",
         "additionalProperties": false,
@@ -10,6 +10,10 @@
           "date": {
             "type": "string",
             "description": "Calendar date in YYYY-MM-DD. Omit for today in the deployment timezone."
+          },
+          "peek": {
+            "type": "boolean",
+            "description": "Only ask about the state: returns whether today's slip exists already, without drawing one. Use it to decide whether to offer a draw."
           }
         },
         "required": []
@@ -18,13 +22,13 @@
         "read"
       ],
       "summary": {
-        "zh": "取某一天的签；不传日期就是今天。同一天在同一台机器上永远是同一张。",
-        "en": "Returns the slip for a date, today by default. The same date is the same slip on this machine."
+        "zh": "取某一天的签；不传日期就是今天。同一天在同一台机器上永远是同一张。带 peek 时只问「今天抽了没有」，不抽。",
+        "en": "Returns the slip for a date, today by default. The same date is the same slip on this machine. With peek it only reports whether today has been drawn."
       }
     },
     {
       "name": "omikuji_record",
-      "description": "Store the slip you wrote for a date, in pet wording mode only: the verse and, optionally, your own reading of it. The first record for a date is kept and every later draw returns it unchanged, so record once and do not rewrite it. Returns what was stored.",
+      "description": "Store the slip you wrote for a date: the verse and, optionally, your own reading of it. The first record for a date is kept and every later draw returns it unchanged, so record once and do not rewrite it. Returns what was stored. Built-in wording mode keeps its own verses, so the call only answers with a note there.",
       "parameters": {
         "type": "object",
         "additionalProperties": false,
@@ -50,8 +54,8 @@
         "write"
       ],
       "summary": {
-        "zh": "把桌宠自己写好的那一签记下来；同一天只认第一份。",
-        "en": "Stores the slip the pet wrote; the first text for a date is the one kept."
+        "zh": "把桌宠自己写好的那一签记下来；同一天只认第一份。内置文案模式下只回一句说明。",
+        "en": "Stores the slip the pet wrote; the first text for a date is the one kept. In built-in wording mode it just answers with a note."
       }
     }
   ],
@@ -59,8 +63,15 @@
     {
       "type": "omikuji.started",
       "description": {
-        "zh": "World 挂载完成，附今天这一签的档位与分数。",
-        "en": "The World was mounted, with today's grade and score."
+        "zh": "World 挂载完成：今天抽过就带上档位与分数，没抽过只说还没抽（不带分数）。",
+        "en": "The World was mounted: with today's grade and score when it was already drawn, and a plain note when it was not."
+      }
+    },
+    {
+      "type": "omikuji.reminder",
+      "description": {
+        "zh": "九点之后今天还没抽签时提醒一次（每天最多一次，随下一批消息捎带）。",
+        "en": "A once-a-day nudge after 9am when the day is still undrawn (delivered with the next batch)."
       }
     }
   ],
@@ -69,7 +80,7 @@
       "key": "worlds.omikuji.envPrompt",
       "title": "精灵日签 · 环境提示词",
       "role": "envPrompt",
-      "content": "Omikuji gives the bot one fortune slip per day: lot number, grade and score, plus a verse, a one-line reading, something to favour, something to avoid and a lucky colour. The receipt writes the score as a plain number with 分 after it.\n\n{{omikuji.mode}}\n\nWhen the operator asks about today's fortune in any wording — 「今日气运」「今天运势怎么样」「测测我今天」「今天顺不顺」, or plainly how the day looks — draw the slip once and answer as yourself, in your own words. Do not paste the receipt unless they ask for the slip itself. Keep the grade and score exactly as returned; the tone is yours to set.\n\nThe slip for a date is fixed on this machine. Drawing the same date again returns identical text, so calling omikuji_draw twice for one day wastes a turn. Apart from those questions, draw today's slip when the operator greets you for the first time in a day; do not draw it unprompted on every turn.\n\nToday: {{omikuji.hint}}\n\nThe verse and grade are entertainment and nothing else. Read them as a tone for the day and speak in your own voice; never report a grade or score other than the ones the tool returned. A 凶 result is a joke about the day, not a warning: keep it light, never frighten the operator, and never suggest they change plans because of it. The World page already shows that the slip is for fun, so do not append a disclaimer to your replies — repeated every time it becomes noise. The operator may ask about another date — pass it as date (YYYY-MM-DD) instead of guessing.\n"
+      "content": "Omikuji gives the bot one fortune slip per day: lot number, grade and score, plus a verse, a one-line reading, something to favour, something to avoid and a lucky colour. The receipt writes the score as a plain number with 分 after it.\n\n{{omikuji.hint}}\n\nWhen the operator asks about today's fortune in any wording — 「今日气运」「今天运势怎么样」「测测我今天」「今天顺不顺」, or plainly how the day looks — draw the slip once and answer as yourself, in your own words. Do not paste the receipt unless they ask for the slip itself. Keep the grade and score exactly as returned; the tone is yours to set.\n\nThe slip for a date is fixed on this machine. Drawing the same date again returns identical text, so calling omikuji_draw twice for one day wastes a turn. Apart from those questions, draw today's slip when the operator greets you for the first time in a day; do not draw it unprompted on every turn.\n\nWho writes the wording is decided by the mode, and the receipt from omikuji_draw tells you which one you are in. If the receipt hands you facts and writing constraints, compose the verse and the reading yourself and call omikuji_record once, so the rest of the day reuses your text. If it hands you a finished slip, use it as written and do not rewrite the verse.\n\nNever state a grade or score for a day that has not been drawn yet: the number is only settled at the moment of drawing, and before that there is nothing to quote. To ask whether today's slip exists without drawing one, call omikuji_draw with peek: true — that call is read-only and safe whenever you are unsure.\n\nThe verse and grade are entertainment and nothing else. Read them as a tone for the day and speak in your own voice; never report a grade or score other than the ones the tool returned. A 凶 result is a joke about the day, not a warning: keep it light, never frighten the operator, and never suggest they change plans because of it. The World page already shows that the slip is for fun, so do not append a disclaimer to your replies — repeated every time it becomes noise. The operator may ask about another date — pass it as date (YYYY-MM-DD) instead of guessing.\n"
     }
   ]
 }

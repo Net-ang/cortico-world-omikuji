@@ -48,18 +48,28 @@ export const OMIKUJI: WorldDefinition<OmikujiConfigSection> = {
   describe: {
     tools: describeTools(OMIKUJI_TOOL_DECLS, {
       omikuji_draw: {
-        zh: '取某一天的签；不传日期就是今天。同一天在同一台机器上永远是同一张。',
-        en: "Returns the slip for a date, today by default. The same date is the same slip on this machine.",
+        zh: '取某一天的签；不传日期就是今天。同一天在同一台机器上永远是同一张。带 peek 时只问「今天抽了没有」，不抽。',
+        en: "Returns the slip for a date, today by default. The same date is the same slip on this machine. With peek it only reports whether today has been drawn.",
       },
       omikuji_record: {
-        zh: '把桌宠自己写好的那一签记下来；同一天只认第一份。',
-        en: 'Stores the slip the pet wrote; the first text for a date is the one kept.',
+        zh: '把桌宠自己写好的那一签记下来；同一天只认第一份。内置文案模式下只回一句说明。',
+        en: 'Stores the slip the pet wrote; the first text for a date is the one kept. In built-in wording mode it just answers with a note.',
       },
     }),
     events: [
       {
         type: 'omikuji.started',
-        description: { zh: 'World 挂载完成，附今天这一签的档位与分数。', en: "The World was mounted, with today's grade and score." },
+        description: {
+          zh: 'World 挂载完成：今天抽过就带上档位与分数，没抽过只说还没抽（不带分数）。',
+          en: "The World was mounted: with today's grade and score when it was already drawn, and a plain note when it was not.",
+        },
+      },
+      {
+        type: 'omikuji.reminder',
+        description: {
+          zh: '九点之后今天还没抽签时提醒一次（每天最多一次，随下一批消息捎带）。',
+          en: 'A once-a-day nudge after 9am when the day is still undrawn (delivered with the next batch).',
+        },
       },
     ],
   },

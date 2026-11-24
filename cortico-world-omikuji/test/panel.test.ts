@@ -38,21 +38,49 @@ function freshDir(name: string): string {
   return dir;
 }
 
-test('面板快照给的就是那天那张签（只读，不产生随机）', () => {
+test('今天没抽：快照里一个数字都不给（sign 为 null）', () => {
   const dir = freshDir('builtin');
   const snap = panelSnapshot(deps('builtin', dir));
-  const expected = drawSign(TODAY, SALT, content);
   assert.equal(snap.today, TODAY);
   assert.equal(snap.date, TODAY);
-  assert.equal(snap.sign.lot, expected.lot);
-  assert.equal(snap.sign.score, expected.score);
-  assert.equal(snap.sign.tierLabel, expected.tierLabel);
-  assert.equal(snap.sign.poem, expected.poem);
+  assert.equal(snap.sign, null, '没抽就没有签可报');
+  assert.equal(snap.drawn, false);
+  assert.equal(snap.locked, false);
+  assert.equal(snap.recent[0]!.date, TODAY);
+  assert.equal(snap.recent[0]!.drawn, false);
+  assert.equal(snap.recent[0]!.lot, null, '今天的格子里也不能有数字');
+  assert.equal(snap.recent[0]!.score, null);
+  assert.equal(snap.recent[0]!.tierLabel, null);
   assert.equal(snap.written, null, 'builtin mode never reports pet wording');
   assert.equal(readDaySalt(dir, TODAY), null, 'snapshot 不该摇盐');
+
+  // 今天那一条里不许有任何分数/签号（过去的日子是定死的，可以带数字）
+  assert.doesNotMatch(JSON.stringify(snap.recent[0]), /"(score|lot)":\d/, '没抽就一个数字都不应存在');
+  assert.equal(snap.sign, null);
 });
 
-test('七天回看：今天在最前，逐天倒序', () => {
+test('抽过之后快照给的才是那天那张签', async () => {
+  const dir = freshDir('builtin-drawn');
+  const world = new OmikujiWorld({
+    cfg: { ...OMIKUJI_DEFAULTS, enabled: true, salt: SALT, wording: 'builtin' },
+    timezone: 'Asia/Shanghai',
+    dataDir: dir,
+    packageDir: PACKAGE_DIR,
+    content,
+    now: () => `${TODAY}T10:00:00+08:00`,
+  });
+  const sign = world.drawFor(TODAY);
+  const snap = panelSnapshot(deps('builtin', dir));
+  assert.ok(snap.sign, '抽过就有签');
+  assert.equal(snap.sign.lot, sign.lot);
+  assert.equal(snap.sign.score, sign.score);
+  assert.equal(snap.sign.tierLabel, sign.tierLabel);
+  assert.equal(snap.drawn, true);
+  assert.equal(snap.locked, false, '真抽的不算补录');
+  assert.equal(snap.recent[0]!.lot, sign.lot);
+});
+
+test('七天回看：今天在最前，逐天倒序；过去的没抽也按固定盐定死', () => {
   const snap = panelSnapshot(deps('builtin', freshDir('builtin-days')));
   assert.equal(snap.recent.length, 7);
   assert.equal(snap.recent[0]!.date, TODAY);
@@ -60,10 +88,13 @@ test('七天回看：今天在最前，逐天倒序', () => {
     snap.recent.map((day) => day.date),
     ['2026-11-23', '2026-11-22', '2026-11-21', '2026-11-20', '2026-11-19', '2026-11-18', '2026-11-17'],
   );
-  for (const day of snap.recent) {
+  // 今天还没抽 → 没有数字；过去的日子（`drawFor` 不会回填）按固定盐算，永远是同一张
+  assert.equal(snap.recent[0]!.score, null);
+  for (const day of snap.recent.slice(1)) {
     const sign = drawSign(day.date, SALT, content);
     assert.equal(day.score, sign.score);
     assert.equal(day.tierLabel, sign.tierLabel);
+    assert.equal(day.drawn, true, '过去的日子视为已定');
   }
 });
 
@@ -87,7 +118,7 @@ test('pet 模式：写过就报原文与解签，没写就报 null 且不编造'
 test('回看指定日期只换 day，七天条不动', () => {
   const snap = panelSnapshot(deps('builtin', freshDir('past')), '2026-11-19');
   assert.equal(snap.date, '2026-11-19');
-  assert.equal(snap.sign.date, '2026-11-19');
+  assert.equal(snap.sign!.date, '2026-11-19', '过去的日子按固定盐定死，回看给得出');
   assert.equal(snap.recent[0]!.date, TODAY);
   assert.equal(snap.today, TODAY);
 });
@@ -124,7 +155,7 @@ test('抽签动画：video 方法把包里那个 mp4 的流式回执交出来', 
   assert.deepEqual(await panelInvoke(bare, PANEL_ID, 'video', []), { absent: true });
 });
 
-test('面板只有 draw 才摇盐：snapshot 和回看都不摇', async () => {
+test('面板只有 draw 才摇盐：snapshot 和回看都不摇，且抽之前没有签', async () => {
   const dir = freshDir('panel-draw');
   const d = deps('builtin', dir);
   const realToday = nowIso('Asia/Shanghai').slice(0, 10);
@@ -132,9 +163,11 @@ test('面板只有 draw 才摇盐：snapshot 和回看都不摇', async () => {
   const read = (await panelInvoke(d, PANEL_ID, 'snapshot', [realToday])) as { sign: unknown; date: string };
   assert.equal(readDaySalt(dir, realToday), null, 'snapshot 不该摇盐');
   assert.equal(read.date, realToday);
+  assert.equal(read.sign, null, '今天没抽，快照里不该有签');
 
   const drawn = (await panelInvoke(d, PANEL_ID, 'draw', [realToday])) as { sign: unknown };
   assert.notEqual(readDaySalt(dir, realToday), null, 'draw 必须摇出盐来');
+  assert.ok(drawn.sign, 'draw 之后才有签');
 
   const after = (await panelInvoke(d, PANEL_ID, 'snapshot', [realToday])) as { sign: unknown };
   assert.deepEqual(after.sign, drawn.sign, '抽过之后读到的是抽出的那张');

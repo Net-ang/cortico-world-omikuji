@@ -8,6 +8,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { isDateIso, type DailySign, type WordingMode } from './daily.ts';
+import { readDayRecord } from './daysalt.ts';
 import { readWordingMonth } from './wording.ts';
 
 /** 本页内的面板 id，`[a-z0-9-]`，不带 World 前缀。 */
@@ -82,9 +83,14 @@ const RECENT_DAYS = 7;
 
 export interface PanelDay {
   date: string;
-  lot: number;
-  score: number;
-  tierLabel: string;
+  /** 有记录就是定下来的（当天抽的，或第二天用固定盐补录的）。 */
+  drawn: boolean;
+  /** 这一天是补录的（没抽，按固定盐定下来）：签已经冻结，可以放心显示。 */
+  locked: boolean;
+  /** 没定的日子这里是 null——不抽就不给任何数字。 */
+  lot: number | null;
+  score: number | null;
+  tierLabel: string | null;
   /** pet 模式下这一天是否已经有桌宠写下的正文。 */
   written: boolean;
 }
@@ -119,7 +125,14 @@ export interface PanelSnapshot {
   today: string;
   /** 本次是哪一天的签：默认今天，回看时是那一天。 */
   date: string;
-  sign: PanelSign;
+  /**
+   * 这一天的签；**没定下来就是 null**。
+   *
+   * 「没定下来」= 就是今天、而且今天还没抽过。那种情况下按固定盐算出来的那张只是
+   * 「现在抽会是什么」，真抽一次会摇新盐换成另一张，所以一个数字都不给。
+   * 七天里的格子同理（`recent` 里没定的那格全是 null）。
+   */
+  sign: PanelSign | null;
   /** pet 模式下这一天已写下的签文；内置模式恒为 null。 */
   written: string | null;
   /** pet 模式下它自己写的解签；没写就为 null。 */
@@ -130,6 +143,10 @@ export interface PanelSnapshot {
   text: PanelText;
   /** 有没有作者头像素材。 */
   avatar: boolean;
+  /** 今天这一天定下来没有（抽过，或已经被补录）。 */
+  drawn: boolean;
+  /** 今天是不是补录的（没抽，用固定盐定下）。 */
+  locked: boolean;
   /** 今天在最前，往前七天。 */
   recent: PanelDay[];
 }
@@ -158,14 +175,33 @@ function hasVideo(deps: PanelDeps, base: string): boolean {
   return resolveVideo(deps, base) !== null;
 }
 
-/** 把一个包内视频做成流式回执；只有真要发送时才哈希。文件不在就返回 null。 */
+/**
+ * 包内静态文件的 sha256 缓存。
+ *
+ * 背景那个 mp4 有 16 MB，而面板每次开、每次重放动画都会来要一次 `$file`；
+ * 每次都同步读一遍整块文件再算哈希，等于在主线程上做 16 MB 的无用功。
+ * 用 mtime + size 作键：文件没换就复用，换了（或大小变了）就重算。
+ */
+const fileDigests = new Map<string, { mtimeMs: number; size: number; sha256: string }>();
+
+/** 一个包内文件的大小与 sha256；同一个文件没改动时不再重读。 */
+function fileFacts(path: string): { bytes: number; sha256: string } {
+  const stat = statSync(path);
+  const cached = fileDigests.get(path);
+  if (cached && cached.mtimeMs === stat.mtimeMs && cached.size === stat.size) {
+    return { bytes: cached.size, sha256: cached.sha256 };
+  }
+  const sha256 = createHash('sha256').update(readFileSync(path)).digest('hex');
+  fileDigests.set(path, { mtimeMs: stat.mtimeMs, size: stat.size, sha256 });
+  return { bytes: stat.size, sha256 };
+}
+
+/** 把一个包内视频做成流式回执；文件不在就返回 null。 */
 function videoFile(deps: PanelDeps, base: string): { $file: { mime: string; path: string; bytes: number; sha256: string } } | null {
   const found = resolveVideo(deps, base);
   if (!found) return null;
   const path = join(deps.packageDir, found.rel);
-  const bytes = statSync(path).size;
-  const sha256 = createHash('sha256').update(readFileSync(path)).digest('hex');
-  return { $file: { mime: found.mime, path, bytes, sha256 } };
+  return { $file: { mime: found.mime, path, ...fileFacts(path) } };
 }
 
 /** 抽签动画的流式回执形状；文件不在时返回 null，面板会直接揭晓。 */
@@ -245,11 +281,23 @@ export function panelSnapshot(deps: PanelDeps, wanted?: string): PanelSnapshot {
     return deps.mode === 'pet' && typeof record?.reading === 'string' && record.reading.length > 0 ? record.reading : null;
   };
 
+  /** 这一天的记录：抽的或补录的；没有就是 null。 */
+  const recordOn = (day: string) => readDayRecord(deps.dataDir, day);
+  /**
+   * 这一天定下来没有。
+   *
+   * 两种算定下：有记录（当天抽的，或第二天用固定盐补录的），**或者已经是过去的日子**——
+   * 过去的日子不会再有随机盐（`drawFor` 只给今天摇盐），所以按固定盐算出来的那张永远不变，
+   * 可以放心显示。唯一「没定下来」的就是今天还没抽。那种情况一个数字都不给。
+   */
+  const settled = (day: string) => recordOn(day) !== null || day < deps.today;
+
   return {
     mode: deps.mode,
     today: deps.today,
     date,
-    sign: toSign(deps.signFor(date)),
+    // 没定下来就一个数字都不给：签字段整个置空，客户端据此画扣着的牌
+    sign: settled(date) ? toSign(deps.signFor(date)) : null,
     written: wordOn(date),
     writtenReading: readingOn(date),
     /** 有没有动态背景素材，面板据此决定要不要去取（这里只查存在，不哈希）。 */
@@ -258,9 +306,22 @@ export function panelSnapshot(deps: PanelDeps, wanted?: string): PanelSnapshot {
     text: { ...deps.text },
     /** 有没有作者头像素材。 */
     avatar: hasAvatar(deps),
+    /** 今天定下来没有（抽过，或已被补录）。 */
+    drawn: settled(deps.today),
+    /** 今天是不是补录的。 */
+    locked: recordOn(deps.today)?.source === 'fallback',
     recent: daysBack(deps.today, RECENT_DAYS).map((day) => {
-      const sign = deps.signFor(day);
-      return { date: day, lot: sign.lot, score: sign.score, tierLabel: sign.tierLabel, written: writtenOn(day) };
+      const locked = settled(day);
+      const sign = locked ? deps.signFor(day) : null;
+      return {
+        date: day,
+        drawn: locked,
+        locked: recordOn(day)?.source === 'fallback',
+        lot: sign ? sign.lot : null,
+        score: sign ? sign.score : null,
+        tierLabel: sign ? sign.tierLabel : null,
+        written: writtenOn(day),
+      };
     }),
   };
 }

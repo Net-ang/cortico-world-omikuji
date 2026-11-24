@@ -226,11 +226,21 @@ export function formatSign(sign: DailySign): string {
   ].join('\n');
 }
 
-/** 进系统前缀的一行。每轮都要付这点 token，所以只给结论，细节留给工具。 */
-export function formatHint(sign: DailySign, wording: WordingMode = 'builtin'): string {
-  const tail = wording === 'pet' ? 'Call omikuji_draw for the brief.' : 'Call omikuji_draw for the verse.';
-  return `Today's slip (${sign.date}): No.${sign.lot}, ${sign.tierLabel}, ${sign.score}. ${tail}`;
-}
+/**
+ * 进系统前缀的那一行。
+ *
+ * **故意不含今天的分数。** 前缀只在挂载/卸载 World、改可见性、手动「重载前缀」和重启时重建，
+ * 抽签不会让它刷新。一旦把「今天 89 分」写进前缀，用户抽完签的那一刻，模型上下文里就会
+ * 同时存在两套说法：前缀说 89，工具回执说 0。所以分数只出现在工具回执里——抽签就是定签，
+ * 定签之前不报数。
+ *
+ * 顺带把「还没抽就提一句」写进来，这就是「桌宠提醒抽签」的前缀部分。
+ */
+export const ENV_HINT =
+  "Daily omikuji is ready: one slip per day, fixed for this machine (date + install salt), different on another machine. "
+  + "Call omikuji_draw to draw today's slip — the receipt carries lot, grade and score. "
+  + "Draw it once when the operator first greets you in a day; never report a grade or score you did not get from a receipt. "
+  + "If nobody has drawn today and the day is well underway, offer to draw one.";
 
 /**
  * pet 模式的回执：只给事实与约束，不给成句。

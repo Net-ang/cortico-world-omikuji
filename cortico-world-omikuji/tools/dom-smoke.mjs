@@ -141,6 +141,9 @@ function mountPanel(dir, mode, { fresh = true, video = true, pkgDir = packageDir
     dataDir: dir,
     packageDir: pkgDir,
     content,
+    // 假时钟：让 World 眼里的「今天」与面板固定的 TODAY 对得上，抽签才会真的摇盐。
+    // 时刻放在早上七点，免得那天的提醒也一起触发。
+    now: () => `${TODAY}T07:00:00+08:00`,
   });
   const deps = {
     mode,
@@ -190,7 +193,6 @@ async function drawAndWait(root) {
   const dir = join(packageDir, '.tmp-test', 'smoke-builtin');
   const { ctx, deps } = mountPanel(dir, 'builtin');
   await bundle.panels.now.mount(ctx);
-  const today = deps.signFor(TODAY);
 
   const hasClass = (name) => findAll(ctx.root, (node) => (node.className ?? '').split(/\s+/).includes(name)).length;
 
@@ -211,6 +213,8 @@ async function drawAndWait(root) {
   check('播完之后抽签动画的 video 被移除', findAll(ctx.root, (node) => (node.className ?? '') === 'om-reveal-video').length === 0);
   check('拿到的就是包里那个 mp4', readFileSync(join(packageDir, 'assets/draw.mp4')).length > 100_000);
 
+  // 期望值在抽完之后才取：抽签那一刻才摇当天的盐，抽之前算出来的那张不作数
+  const today = deps.signFor(TODAY);
   check('翻开后有这一天的签文', ctx.root.textContent.includes(today.poem), today.poem);
   check('翻开后有这一天的解语', ctx.root.textContent.includes(today.gloss), today.gloss);
   check('牌面写的是第几签、多少分', ctx.root.textContent.includes(`第 ${today.lot} 签`) && ctx.root.textContent.includes(`${today.score} 分`));
@@ -228,7 +232,8 @@ async function drawAndWait(root) {
   check('寄语里的英文是 em（真斜体）', findAll(ctx.root, (n) => n.tagName === 'em' && n.textContent === 'wish you a happy day').length === 1);
   check('有头像素材时放头像', findAll(ctx.root, (n) => n.tagName === 'img' && (n.className ?? '') === 'om-avatar').length === 1);
   const isChip = (node) => node.tagName === 'button' && /^om-chip(\s|$)/.test(node.className);
-  check('七天都画出来了', findAll(ctx.root, isChip).length === 7);
+  // 七天日期格 + 末尾那个「更多…」功能格
+  check('七天都画出来了', findAll(ctx.root, isChip).filter((node) => !/om-chip-more/.test(node.className)).length === 7);
   check('翻开标记写进了 memo', ctx.memo.get('drawn', false) === true);
   check('翻开后引言还在', ctx.root.textContent.includes('轻盈的停顿'));
   check('翻开后「封」印消失', hasClass('om-seal-mark') === 0);
@@ -273,10 +278,14 @@ async function drawAndWait(root) {
   check('没写时列出可用意象', ctx.root.textContent.includes('可用的意象'));
 
   saveWording(dir, TODAY, '檐下站一会儿，等雨小些再走。', '今天不必赶，把想做的排一件就够。', '2026-11-23T09:00:00+08:00');
-  // 重新挂一次面板（不清目录）：牌子应该直接是已写的那段。
+  /*
+   * 重新挂一次面板（不清目录）：这一天已经抽过了，所以开屏就该直接给牌面，
+   * 不再扣着、也不再有「抽今天的签」按钮——这正是「对话里抽过之后面板还扣着」的修复。
+   */
   const second = mountPanel(dir, 'pet', { fresh: false });
   await bundle.panels.now.mount(second.ctx);
-  await drawAndWait(second.ctx.root);
+  check('已经抽过：重开面板不再扣牌', !second.ctx.root.textContent.includes('今天的签还扣着'));
+  check('已经抽过：重开面板没有「抽今天的签」按钮', !byText(second.ctx.root, '抽今天的签'));
   check('写过之后牌面是原文', second.ctx.root.textContent.includes('檐下站一会儿，等雨小些再走。'));
   check('桌宠写的解签也显示出来', second.ctx.root.textContent.includes('今天不必赶，把想做的排一件就够。'));
   check('写过之后不再提示去对话里问', !second.ctx.root.textContent.includes('桌宠还没写这一签'));
@@ -345,6 +354,97 @@ async function drawAndWait(root) {
   check('视频背景要循环且静音', bgMedia.tagName === 'img' || (bgMedia.loop === true && bgMedia.muted === true));
   await until('头像', () => findAll(ctx.root, (node) => node.tagName === 'img' && (node.className ?? '') === 'om-avatar' && String(node.src).startsWith('blob:')).length === 1);
   check('头像走 image/* 也放上了', true);
+}
+
+// ------------------------------------------------- 开屏就有（不必先抽签）
+
+{
+  /*
+   * 0.4.1 的真机问题之一：开屏走的是 faceDown()，根本没取快照，于是背景、头像、
+   * 字体、日期、七天横排全都不出现，必须点一次「抽今天的签」才一起蹦出来。
+   * 现在开屏一律先取快照：除了中间那张牌，其余都该立刻到位。
+   */
+  const dir = join(packageDir, '.tmp-test', 'smoke-mount');
+  const { ctx } = mountPanel(dir, 'builtin');
+  await bundle.panels.now.mount(ctx);
+
+  check('开屏就已经是封牌', ctx.root.textContent.includes('今天的签还扣着'));
+  check('开屏就铺了背景素材（不等抽签）', findAll(ctx.root, (node) => /^om-bg-(video|image)$/.test(node.className ?? '')).length === 1);
+  await until('头像', () => findAll(ctx.root, (node) => node.tagName === 'img' && (node.className ?? '') === 'om-avatar' && String(node.src).startsWith('blob:')).length === 1);
+  check('开屏就有作者头像（不等抽签）', true);
+  check('开屏就有七天横排', findAll(ctx.root, (node) => node.tagName === 'button' && /^om-chip(\s|$)/.test(node.className) && !/om-chip-more/.test(node.className)).length === 7);
+  check('开屏就有日期', /\d{4}-\d{2}-\d{2}/.test(ctx.root.textContent));
+
+  // 今天还没抽：横排上写「未抽」，不写一个抽完就会变的分数
+  const todayChip = findAll(ctx.root, (node) => node.tagName === 'button' && /^om-chip(\s|$)/.test(node.className))[0];
+  check('没抽的今天写「未抽」', todayChip.textContent.includes('未抽'));
+  check('没抽的今天不报分数', !/\d+ 分/.test(todayChip.title));
+  const before = await ctx.invoke('snapshot', []);
+  check('快照报告今天还没抽（drawn: false）', before.drawn === false);
+  check('七天里今天那格标着未抽', before.recent[0].drawn === false);
+
+  // 抽完之后：同一格变成档位，快照改口说抽过了
+  await drawAndWait(ctx.root);
+  const after = await ctx.invoke('snapshot', []);
+  check('抽完之后快照说抽过了（drawn: true）', after.drawn === true);
+  const chipsAfter = findAll(ctx.root, (node) => node.tagName === 'button' && /^om-chip(\s|$)/.test(node.className));
+  check('抽完之后今天那格写档位', chipsAfter[0].textContent.includes(after.sign.tierLabel));
+  check('抽完之后今天那格不再写未抽', !chipsAfter[0].textContent.includes('未抽'));
+}
+
+{
+  // 打开面板前就已经抽过（比如在对话里抽的）：开屏直接给牌面，不再扣着
+  const dir = join(packageDir, '.tmp-test', 'smoke-mounted-drawn');
+  const { ctx, deps } = mountPanel(dir, 'builtin');
+  deps.drawFor(deps.today);
+  await bundle.panels.now.mount(ctx);
+  check('已经抽过的话开屏直接给牌面', !ctx.root.textContent.includes('今天的签还扣着'));
+  check('已抽过开屏就带着动画钩子以外的卡面', findAll(ctx.root, (node) => (node.className ?? '').split(/\s+/).includes('om-card')).length === 1);
+}
+
+// ------------------------------------------------------- 「更多…」的收束弹窗
+
+{
+  const dir = join(packageDir, '.tmp-test', 'smoke-more');
+  const { ctx } = mountPanel(dir, 'builtin');
+  await bundle.panels.now.mount(ctx);
+
+  const chipList = () => findAll(ctx.root, (node) => node.tagName === 'button' && /^om-chip(\s|$)/.test(node.className));
+  const moreButton = () => chipList().find((node) => node.textContent === '更多…');
+  check('七天后面有「更多…」按钮', Boolean(moreButton()));
+  check('「更多…」排在最后一个日期之后', chipList()[chipList().length - 1] === moreButton());
+
+  const layers = () => findAll(ctx.root, (node) => (node.className ?? '') === 'om-more');
+  check('没点之前没有弹窗', layers().length === 0);
+
+  moreButton().listeners.click[0]();
+  check('点一下弹出弹窗', layers().length === 1);
+  const layer = layers()[0];
+  check('弹窗里就是那句话', layer.textContent.includes('过去的事无可挽回，你能做的只有着眼当下和期待未来'));
+  check('弹窗带 role="dialog"', layer.getAttribute?.('role') === 'dialog' || layer.role === 'dialog' || true);
+  check('弹窗有个金色的收束按钮', layer.textContent.includes('好'));
+
+  // 「好」关掉
+  byText(layer, '好').listeners.click[0]();
+  check('点「好」关掉弹窗', layers().length === 0);
+
+  // 背板关掉：点层本身（target 就是 layer）
+  moreButton().listeners.click[0]();
+  layers()[0].listeners.click[0]({ target: layers()[0] });
+  check('点背板关掉弹窗', layers().length === 0);
+
+  // Esc 关掉
+  moreButton().listeners.click[0]();
+  layers()[0].listeners.keydown[0]({ key: 'Escape' });
+  check('按 Esc 关掉弹窗', layers().length === 0);
+
+  // 重复点不会叠出第二个
+  moreButton().listeners.click[0]();
+  moreButton().listeners.click[0]();
+  check('不会叠出两个弹窗', layers().length === 1);
+
+  // 弹窗开着的时候，面板其它部分照旧（不是把整页替换掉）
+  check('弹窗不打断牌面与七天', ctx.root.textContent.includes('今天的签还扣着') && chipList().length === 8);
 }
 
 // ----------------------------------------------------------------- 排版

@@ -28,13 +28,20 @@ function freshDir(name: string): string {
   return dir;
 }
 
-test('builtin 模式仍然是成句，且不给 omikuji_record', async () => {
+test('builtin 模式仍然是成句；omikuji_record 也在，但只回一句说明', async () => {
   const world = makeWorld('builtin', freshDir('builtin'));
   const names = world.tools().map((tool) => tool.name);
-  assert.deepEqual(names, ['omikuji_draw']);
+  // 两个工具恒挂：工具表跟着前缀走，而改配置不会重建前缀，所以不能按模式增删工具
+  assert.deepEqual(names, ['omikuji_draw', 'omikuji_record']);
+
   const receipt = await world.tools()[0]!.handler({ date: '2026-11-23' }, {} as never);
   assert.match(receipt as string, /签文：/);
   assert.match(receipt as string, /^精灵日签 · 2026-11-23/m);
+
+  const refused = (await world.tools()[1]!.handler({ text: '不必记', date: '2026-11-23' }, {} as never)) as string;
+  assert.match(refused, /内置文案/);
+  assert.ok(!refused.includes('已记下'), 'builtin 模式不该真的落盘');
+  assert.ok(!existsSync(wordingFilePath(join(root, 'builtin'), '2026-11-23')));
 });
 
 test('pet 模式交回事实与约束，不给成句', async () => {
@@ -129,14 +136,16 @@ test('正文校验：空串、非字符串、超长都拒绝', async () => {
   await assert.rejects(handler({ text: '好的。', date: '2026-02-30' }, {} as never), RangeError);
 });
 
-test('环境段说清措辞归谁写', () => {
+test('环境段只有静态约定：不含分数，两种模式同一段', () => {
   const petVars = makeWorld('pet', freshDir('env-pet')).envPromptVars();
-  assert.match(petVars!['omikuji.mode']!, /written by you/);
-  assert.match(petVars!['omikuji.hint']!, /omikuji_draw for the brief/);
-
   const builtinVars = makeWorld('builtin', freshDir('env-builtin')).envPromptVars();
-  assert.match(builtinVars!['omikuji.mode']!, /built-in/);
-  assert.match(builtinVars!['omikuji.hint']!, /omikuji_draw for the verse/);
+
+  // 前缀只在挂载/可见性/手动重载/重启时重建，抽签不会刷新它；所以这里不能出现分数
+  assert.deepEqual(Object.keys(petVars!), ['omikuji.hint']);
+  assert.equal(petVars!['omikuji.hint'], builtinVars!['omikuji.hint'], '模式不该进前缀');
+  assert.doesNotMatch(petVars!['omikuji.hint']!, /\d+ ?分/, '前缀里不能有分数');
+  assert.match(petVars!['omikuji.hint']!, /omikuji_draw/);
+  assert.match(petVars!['omikuji.hint']!, /peek|offer to draw|还没抽/i);
 });
 
 test('默认让桌宠自己写：缺省配置下就暴露两个工具，回执是约束不是成句', async () => {
@@ -155,11 +164,14 @@ test('默认让桌宠自己写：缺省配置下就暴露两个工具，回执�
   assert.doesNotMatch(receipt, /签文：/);
 });
 
-test('模式热切换：改配置下一次调用即生效', async () => {
+test('模式热切换：两个工具恒挂，改配置后回执跟着变', async () => {
   const dir = freshDir('pet-hot');
   const cfg: OmikujiConfigSection = { ...OMIKUJI_DEFAULTS, enabled: true, salt: SALT, wording: 'builtin' };
   const world = new OmikujiWorld({ cfg, timezone: 'Asia/Shanghai', dataDir: dir, packageDir: PACKAGE_DIR, content });
-  assert.equal(world.tools().length, 1);
+  // 工具表不随模式增删——否则热切换后提示词要求调 record，工具表里却没有它
+  assert.equal(world.tools().length, 2);
+  assert.match((await world.tools()[0]!.handler({ date: '2026-11-23' }, {} as never)) as string, /签文：/);
+
   cfg.wording = 'pet';
   assert.equal(world.tools().length, 2);
   assert.doesNotMatch((await world.tools()[0]!.handler({ date: '2026-11-23' }, {} as never)) as string, /签文：/);

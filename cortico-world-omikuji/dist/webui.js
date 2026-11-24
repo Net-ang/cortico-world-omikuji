@@ -34,6 +34,11 @@ const TEXT = {
     images: '可用的意象',
     recent: '这七天',
     writtenMark: '已写',
+    undrawn: '未抽',
+    locked: '当时没抽，按固定盐补录',
+    more: '更多…',
+    moreText: '过去的事无可挽回，你能做的只有着眼当下和期待未来',
+    moreClose: '好',
     disclaimer: '相信科学，仅供娱乐参考。',
     failed: '没抽成',
     sealMark: '封',
@@ -69,6 +74,11 @@ const TEXT = {
     images: 'Images to use',
     recent: 'Last seven days',
     writtenMark: 'written',
+    undrawn: 'not drawn',
+    locked: 'not drawn that day; filled in from the fixed salt',
+    more: 'More…',
+    moreText: 'What is past cannot be undone. All that is left to you is to face the present and look forward to what comes.',
+    moreClose: 'Close',
     disclaimer: 'For fun only. Nothing here predicts anything.',
     failed: 'Draw failed',
     sealMark: 'sealed',
@@ -380,25 +390,87 @@ export default {
         const renderChips = (s) => {
           chips.replaceChildren();
           for (const day of s.recent) {
+            // 没定下来的那天（就是今天还没抽）横排上写「未抽」，一个数字都不写
+            const provisional = !day.drawn;
             const chip = el('button', `om-chip${day.date === s.date ? ' om-chip-on' : ''}`);
             chip.type = 'button';
-            chip.title = `${day.date} · ${day.tierLabel} · ${day.score} 分`;
+            chip.title = provisional
+              ? `${day.date} · ${T.undrawn}`
+              : `${day.date} · ${day.tierLabel} · ${day.score} 分${day.locked ? ` · ${T.locked}` : ''}`;
             chip.append(
               el('span', 'om-chip-date', shortDate(day.date)),
-              el('span', 'om-chip-tier', day.tierLabel),
+              el('span', provisional ? 'om-chip-tier om-chip-undrawn' : 'om-chip-tier', provisional ? T.undrawn : day.tierLabel),
             );
             if (day.written) chip.append(el('span', 'om-chip-mark', T.writtenMark));
             chip.addEventListener('click', () => void load(day.date, null, null), { signal: ctx.signal });
             chips.append(chip);
           }
+          /*
+           * 翻到头了：七天之后没有更多日签可看，只有这一句。
+           * 放在最后一个日期后面，点开是一个只有一句话的小弹窗。
+           */
+          const more = el('button', 'om-chip om-chip-more', T.more);
+          more.type = 'button';
+          more.addEventListener('click', () => openMore(), { signal: ctx.signal });
+          chips.append(more);
         };
+
+        /*
+         * 「更多…」的弹窗。
+         *
+         * 自己搭一层：宿主没有给面板开弹窗的接口，而这一句只是一个收束，不需要交互。
+         * 挂在 shell 里（而不是 body），这样能继承 shell 上的色板变量；
+         * position: fixed 覆盖整个面板区域，卸载时随 signal 一起收掉。
+         */
+        let moreLayer = null;
+        const closeMore = () => {
+          const layer = moreLayer;
+          if (!layer) return;
+          moreLayer = null;
+          if (typeof layer.remove === 'function') layer.remove();
+        };
+        const openMore = () => {
+          if (moreLayer) return;
+          const layer = el('div', 'om-more');
+          layer.tabIndex = -1; // 让这一层能拿到焦点，Esc 才有地方触发
+          if (typeof layer.setAttribute === 'function') {
+            layer.setAttribute('role', 'dialog');
+            layer.setAttribute('aria-modal', 'true');
+            layer.setAttribute('aria-label', T.more);
+          }
+          const card = el('div', 'om-more-card');
+          const text = el('p', 'om-more-text', T.moreText);
+          const close = el('button', 'om-btn om-btn-primary', T.moreClose);
+          close.type = 'button';
+          close.addEventListener('click', closeMore, { signal: ctx.signal });
+          card.append(text, close);
+          layer.append(card);
+          // 点背板关掉；点卡片本身不关
+          layer.addEventListener('click', (event) => {
+            if (!event || event.target === layer) closeMore();
+          }, { signal: ctx.signal });
+          // Esc 关掉（焦点落在这一层上，键盘事件才会到这儿）
+          layer.addEventListener('keydown', (event) => {
+            if (event && event.key === 'Escape') closeMore();
+          }, { signal: ctx.signal });
+          moreLayer = layer;
+          shell.append(layer);
+          if (typeof layer.focus === 'function') layer.focus();
+        };
+        if (ctx.signal) ctx.signal.addEventListener('abort', closeMore, { once: true });
 
         const render = () => {
           const s = snapshot;
           if (!s) return faceDown();
           meta.textContent = s.date === s.today ? s.today : `${s.date} · ${T.lookBack}`;
           applyText(s.text);
-          stage.replaceChildren(renderCard(s));
+          /*
+           * 服务端说这一天还没定下来（`sign` 为 null，只有「今天还没抽」这一种）：
+           * 背景、头像、字体、日期、七天横排照常画——这些不必等抽签——但中间只摆一张扣着的牌。
+           * 没抽就一个数字都不显示：真抽一次会摇新盐换成另一张，提前显示它才是那个「突变」的来源。
+           */
+          if (!s.sign) faceDown();
+          else stage.replaceChildren(renderCard(s));
           renderChips(s);
           // 快照说包里有背景素材才去取；取一次就够，之后不再重复请求
           if (s.background) void startBackground();
@@ -406,8 +478,8 @@ export default {
           return undefined;
         };
 
-        if (ctx.memo.get('drawn', false)) await load(undefined, null, null);
-        else faceDown();
+        // 开屏就先取一次快照：背景、头像、字体、七天横排都不必等抽签才出现
+        await load(undefined, null, null);
       },
     },
   },

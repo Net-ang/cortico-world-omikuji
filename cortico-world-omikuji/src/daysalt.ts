@@ -21,6 +21,13 @@ export const RETENTION_DAYS = 7;
 export interface DaySalt {
   salt: string;
   createdAt: string;
+  /**
+   * 这一天的盐是哪儿来的。
+   *
+   * - `draw`：当天真抽签时摇的随机盐（老记录没有这个字段，按 `draw` 看待）
+   * - `fallback`：第二天回头发现那天没抽，用固定本机盐补录的——签就此定下，不再变
+   */
+  source?: 'draw' | 'fallback';
 }
 
 type DayStore = Record<string, DaySalt>;
@@ -59,6 +66,46 @@ export function readDaySalt(dataDir: string, date: string): string | null {
   return typeof record?.salt === 'string' && record.salt.length > 0 ? record.salt : null;
 }
 
+/** 只读：这一天的盐与它的来路（老记录没有 `source`，按「当天抽的」看待）。 */
+export function readDayRecord(dataDir: string, date: string): { salt: string; source: 'draw' | 'fallback' } | null {
+  const record = readStore(dataDir)[date];
+  if (typeof record?.salt !== 'string' || record.salt.length === 0) return null;
+  return { salt: record.salt, source: record.source === 'fallback' ? 'fallback' : 'draw' };
+}
+
+/**
+ * 补录：把「已经过去、却没有抽过」的日子用固定本机盐定下来。
+ *
+ * 规则是作者定的：当天没抽签，第二天回头就用「日期 + 固定盐」把那天生成出来。
+ * 写完这一天就**冻结**了——之后谁再看都是同一张，不会再变（除非手动清了
+ * `omikuji-days.json`）。
+ *
+ * 只动「今天之前」且「七天窗口内」且「还没有记录」的日子；今天不碰（今天没抽就是没抽），
+ * 已有的记录一个都不改。返回这次补录了哪些日子。
+ */
+export function lockFallbackDays(
+  dataDir: string,
+  today: string,
+  fixedSalt: string,
+  nowIso: string,
+): string[] {
+  const store = readStore(dataDir);
+  const kept: DayStore = {};
+  const locked: string[] = [];
+  for (const date of daysBefore(today, RETENTION_DAYS)) {
+    const existing = store[date];
+    if (typeof existing?.salt === 'string' && existing.salt.length > 0) {
+      kept[date] = existing;                       // 已经定了，一个字节都不动
+      continue;
+    }
+    if (date >= today) continue;                   // 今天：没抽就是没抽，不补
+    kept[date] = { salt: fixedSalt, createdAt: nowIso, source: 'fallback' };
+    locked.push(date);
+  }
+  if (locked.length > 0) writeStore(dataDir, kept);
+  return locked;
+}
+
 /** 七天窗口内的日期（含今天），用于面板那种「一次看七天」的场合。 */
 export function storedDays(dataDir: string, today: string): string[] {
   const store = readStore(dataDir);
@@ -85,7 +132,7 @@ export function materializeDaySalt(
   for (const windowDate of daysBefore(date, RETENTION_DAYS)) {
     if (typeof store[windowDate]?.salt === 'string') kept[windowDate] = store[windowDate]!;
   }
-  const record: DaySalt = { salt: randomBytes(8).toString('hex'), createdAt: nowIso };
+  const record: DaySalt = { salt: randomBytes(8).toString('hex'), createdAt: nowIso, source: 'draw' };
   kept[date] = record;
   writeStore(dataDir, kept);
   return { salt: record.salt, created: true };
