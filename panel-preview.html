@@ -23,22 +23,47 @@
 /*
  * 「今日一签」面板样式。
  *
- * 只用宿主暴露的 CSS 变量，跟着主题走；变量缺失时退回中性色。
- * 不写死深色/浅色，也不接管全局选择器。
+ * 配色是**自带**的，不跟宿主主题走：这一页铺着动态壁纸，需要稳定的深底浅字才读得清。
+ * 早先版本用 `var(--ink, inherit)` / `var(--paper-2)` 这类宿主变量，宿主恰好给了浅色
+ * 或没给变量时，就成了「灰底 + 字发糊」。现在整套色板写在 .om-shell 上。
+ *
+ * 排版基线见 .om-app：14px 基准 + em 递进，字号/字重/斜体都由 CSS 定死，只开放字体族。
  */
 
-/* 页面外壳：动态背景铺在最底下，内容浮在上面。 */
+/* 页面外壳：自绘背景在最底层，动态素材盖上去，内容浮在最上面。 */
 .om-shell {
+  /* 色板：暖墨底 + 米白字 + 一点金 */
+  --om-ink: #f3ece0;
+  --om-ink-soft: #dcd1c0;
+  --om-ink-dim: #b0a493;
+  --om-gold: #e0bd7c;
+  --om-gold-dim: rgba(224, 189, 124, 0.34);
+  --om-card: rgba(23, 25, 30, 0.74);
+  --om-card-solid: rgba(23, 25, 30, 0.9);
+  --om-hair: rgba(224, 189, 124, 0.26);
+  --om-hair-soft: rgba(243, 236, 224, 0.14);
+  --om-shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 0 18px rgba(0, 0, 0, 0.28);
+
   position: relative;
   isolation: isolate;
   min-height: 100%;
+  color: var(--om-ink);
+  /*
+   * 兜底背景：媒体没到、正在取、或用户环境不支持时，也要有画面感。
+   * 暖墨底 + 一圈柔光，像灯下的宣纸，而不是一块失败的灰。
+   */
+  background:
+    radial-gradient(120% 90% at 50% -10%, rgba(224, 189, 124, 0.16), transparent 62%),
+    radial-gradient(90% 70% at 12% 100%, rgba(94, 122, 148, 0.22), transparent 66%),
+    linear-gradient(168deg, #1a1c22 0%, #14161b 46%, #101216 100%);
+  border-radius: var(--radius-lg, 14px);
 }
 
 .om-bg {
   position: absolute;
   inset: 0;
   overflow: hidden;
-  border-radius: var(--radius-lg, 14px);
+  border-radius: inherit;
   z-index: 0;
   pointer-events: none;
 }
@@ -47,26 +72,34 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  /* 压暗 + 轻微模糊：背景是气氛，不能跟字抢注意力 */
-  filter: saturate(0.9) brightness(0.62);
+  /* 压暗 + 轻微降饱和：背景是气氛，不能跟字抢注意力 */
+  filter: saturate(0.92) brightness(0.66) contrast(1.04);
   transform: scale(1.02);
+  animation: om-bg-in 900ms ease-out both;
 }
 
-/* 遮罩：让牌面、文字在任何一帧上都读得清 */
+@keyframes om-bg-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* 遮罩：上深下也深，中间留亮，任何一帧都不会让字沉下去 */
 .om-bg::after {
   content: '';
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(120% 80% at 50% 0%, rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.55) 70%),
-    linear-gradient(180deg, rgba(0, 0, 0, 0.25), rgba(0, 0, 0, 0.5));
+    radial-gradient(118% 76% at 50% 4%, rgba(8, 9, 12, 0.18), rgba(8, 9, 12, 0.62) 68%),
+    linear-gradient(180deg, rgba(8, 9, 12, 0.42), rgba(8, 9, 12, 0.3) 42%, rgba(8, 9, 12, 0.66));
 }
 
-/* 有背景时，卡片要稍微透一点，才看得见底下在动 */
-.om-shell:has(.om-bg-video) .om-card,
-.om-shell:has(.om-bg-video) .om-face {
-  background: color-mix(in srgb, var(--paper, #191d24) 82%, transparent);
-  backdrop-filter: blur(2px);
+/* 动图/静图背景：小图铺满一定会放大，主动做成柔光层（磨砂玻璃），而不是拉伸失败的位图 */
+.om-bg-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: blur(18px) saturate(1.05) brightness(0.6);
+  transform: scale(1.12);
 }
 
 /*
@@ -79,11 +112,14 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
-  padding: 4px 2px 12px;
+  padding: 6px 4px 14px;
   font-size: 14px;
   font-family: var(--om-font, "KaiTi", "STKaiti", serif);
   font-weight: 400;
   line-height: 1.75;
+  color: var(--om-ink);
+  /* 视频帧一会儿亮一会儿暗，浅字压一层影才稳 */
+  text-shadow: var(--om-shadow);
 }
 
 /* 字体栈：按名字引用本机字体，缺哪个退下一个；最后一律回到衬线/无衬线 */
@@ -111,34 +147,43 @@
   margin: 0;
   font-size: 1.214em;
   font-weight: 600;
-  color: var(--ink, inherit);
+  color: var(--om-ink);
+  letter-spacing: 0.04em;
+}
+
+/* 标题下那道金线：给整页一个落款感 */
+.om-head::after {
+  content: '';
+  height: 1px;
+  margin-top: 2px;
+  background: linear-gradient(90deg, var(--om-gold-dim), transparent 72%);
 }
 
 .om-meta {
   margin: 0;
   font-size: 0.857em;
   font-variant-numeric: tabular-nums;
-  color: var(--ink-dim, #888);
+  color: var(--om-ink-dim);
 }
 
-/* 面板顶部的引言：压低对比，读起来像句子而不是说明。 */
+/* 面板顶部的引言：压低对比，读起来像句子而不是说明 */
 .om-intro {
   margin: 0;
   max-width: 46em;
   font-size: 0.929em;
   line-height: 1.85;
-  color: var(--ink-soft, #666);
+  color: var(--om-ink-soft);
   text-wrap: pretty;
 }
 
 /* ---------------------------------------------------------------- 扣着的牌 */
 
-/* 「封」字印章：纯装饰，抽过之后就不再出现。 */
 .om-sealed {
   position: relative;
   overflow: hidden;
 }
 
+/* 「封」字印章：纯装饰，抽过之后就不再出现 */
 .om-seal-mark {
   position: absolute;
   top: 50%;
@@ -147,8 +192,8 @@
   font-size: 8.6em;
   line-height: 1;
   font-family: var(--serif, "Songti SC", "SimSun", serif);
-  color: var(--ink, #333);
-  opacity: 0.06;
+  color: var(--om-gold);
+  opacity: 0.1;
   pointer-events: none;
   user-select: none;
 }
@@ -164,21 +209,22 @@
   align-items: center;
   gap: 12px;
   padding: 34px 16px;
-  border: 1px dashed var(--line-2, rgba(128, 128, 128, 0.4));
+  border: 1px dashed var(--om-hair);
   border-radius: var(--radius-lg, 14px);
-  background: var(--paper-2, rgba(128, 128, 128, 0.06));
+  background: var(--om-card);
+  backdrop-filter: blur(6px) saturate(1.1);
 }
 
 .om-face-lead {
   margin: 0;
   font-size: 0.929em;
-  color: var(--ink-soft, #666);
+  color: var(--om-ink-soft);
 }
 
 .om-err {
   margin: 0;
   font-size: 0.929em;
-  color: var(--danger, #c0392b);
+  color: #ff9d8a;
 }
 
 /* ------------------------------------------------------------------ 按钮 */
@@ -187,15 +233,18 @@
   font: inherit;
   font-size: 0.929em;
   padding: 7px 14px;
-  border: 1px solid var(--line-2, rgba(128, 128, 128, 0.45));
+  border: 1px solid var(--om-hair);
   border-radius: var(--radius-md, 9px);
-  background: var(--paper, transparent);
-  color: var(--ink, inherit);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--om-ink);
   cursor: pointer;
+  text-shadow: none;
+  transition: background 120ms ease, border-color 120ms ease;
 }
 
 .om-btn:hover:not(:disabled) {
-  background: var(--hover, rgba(128, 128, 128, 0.12));
+  background: rgba(255, 255, 255, 0.13);
+  border-color: var(--om-gold);
 }
 
 .om-btn:disabled {
@@ -203,15 +252,17 @@
   cursor: default;
 }
 
+/* 主按钮：金色实心，字用深棕——视频底上最跳得出来的一处 */
 .om-btn-primary {
   border-color: transparent;
-  background: var(--accent, #4a86e8);
-  color: var(--on-accent, #fff);
+  background: linear-gradient(180deg, #eccd8f, #d3a95f);
+  color: #2a2118;
+  font-weight: 600;
 }
 
 .om-btn-primary:hover:not(:disabled) {
-  filter: brightness(1.06);
-  background: var(--accent, #4a86e8);
+  border-color: transparent;
+  background: linear-gradient(180deg, #f3d79f, #dcb46b);
 }
 
 /* ------------------------------------------------------------------ 牌面 */
@@ -221,9 +272,10 @@
   flex-direction: column;
   gap: 12px;
   padding: 14px 16px 12px;
-  border: 1px solid var(--line, rgba(128, 128, 128, 0.3));
+  border: 1px solid var(--om-hair-soft);
   border-radius: var(--radius-lg, 14px);
-  background: var(--paper, transparent);
+  background: var(--om-card);
+  backdrop-filter: blur(7px) saturate(1.12);
 }
 
 .om-card-past {
@@ -240,19 +292,20 @@
 .om-lot {
   font-size: 0.857em;
   font-variant-numeric: tabular-nums;
-  color: var(--ink-dim, #888);
+  color: var(--om-ink-dim);
 }
 
 .om-tier {
-  font-size: 1.071em;
+  font-size: 1.143em;
   font-weight: 600;
-  color: var(--ink, inherit);
+  color: var(--om-gold);
+  letter-spacing: 0.06em;
 }
 
 .om-score {
   font-size: 0.857em;
   font-variant-numeric: tabular-nums;
-  color: var(--ink-soft, #666);
+  color: var(--om-ink-soft);
 }
 
 .om-tag {
@@ -260,8 +313,8 @@
   font-size: 0.786em;
   padding: 2px 7px;
   border-radius: 999px;
-  background: var(--paper-2, rgba(128, 128, 128, 0.12));
-  color: var(--ink-dim, #888);
+  background: rgba(224, 189, 124, 0.16);
+  color: var(--om-gold);
 }
 
 .om-card-body {
@@ -273,52 +326,57 @@
 .om-poem {
   margin: 0;
   font-size: 1.071em;
+  font-weight: 500;
   line-height: 1.7;
-  color: var(--ink, inherit);
+  color: var(--om-ink);
+  letter-spacing: 0.03em;
 }
 
 .om-gloss,
 .om-written {
   margin: 0;
   font-size: 0.929em;
-  line-height: 1.7;
-  color: var(--ink-soft, #555);
+  line-height: 1.75;
+  color: var(--om-ink-soft);
 }
 
 .om-written {
   font-size: 1.071em;
-  color: var(--ink, inherit);
+  font-weight: 500;
+  color: var(--om-ink);
 }
 
 .om-written-by {
   margin: 0;
   font-size: 0.786em;
-  color: var(--ink-dim, #888);
+  color: var(--om-ink-dim);
 }
 
 .om-pending {
   margin: 0;
   font-size: 0.929em;
   line-height: 1.7;
-  color: var(--ink-soft, #666);
+  color: var(--om-ink-soft);
 }
 
-/* 节气与月相那一行：时令感，压到最轻。 */
+/* 节气与月相那一行：时令感，压到最轻 */
 .om-almanac {
   margin: 0;
+  padding-bottom: 2px;
   font-size: 0.821em;
   line-height: 1.7;
-  color: var(--ink-dim, #888);
+  color: var(--om-ink-dim);
+  border-bottom: 1px solid var(--om-hair-soft);
 }
 
-/* 详批：比解语长、比签文轻。 */
+/* 详批：比解语长、比签文轻 */
 .om-reading {
   margin: 0;
   padding-left: 4.5em;
   text-indent: -4.5em;
   font-size: 0.929em;
   line-height: 1.85;
-  color: var(--ink-soft, #666);
+  color: var(--om-ink-soft);
   text-wrap: pretty;
 }
 
@@ -338,21 +396,22 @@
 
 .om-star-k {
   flex: 0 0 4.5em;
-  color: var(--ink-dim, #888);
+  color: var(--om-ink-dim);
 }
 
 .om-star-v {
-  color: var(--accent, #4a86e8);
-  letter-spacing: 0.06em;
+  color: var(--om-gold);
+  letter-spacing: 0.08em;
+  text-shadow: 0 0 10px rgba(224, 189, 124, 0.35);
 }
 
-/* 幸运四项：一行写完，不占四行。 */
+/* 幸运四项：一行写完，不占四行 */
 .om-lucky {
   margin: 0;
   padding-top: 2px;
   font-size: 0.893em;
   line-height: 1.7;
-  color: var(--ink-dim, #888);
+  color: var(--om-gold);
 }
 
 .om-fact {
@@ -364,11 +423,11 @@
 
 .om-fact-k {
   flex: 0 0 4.5em;
-  color: var(--ink-dim, #888);
+  color: var(--om-ink-dim);
 }
 
 .om-fact-v {
-  color: var(--ink, inherit);
+  color: var(--om-ink);
 }
 
 .om-actions {
@@ -377,14 +436,14 @@
   padding-top: 2px;
 }
 
-/* 翻开后的收束句：比签文轻、比免责重，居中收尾。 */
+/* 翻开后的收束句：比签文轻、比免责重，居中收尾 */
 .om-blessing {
   margin: 0;
   padding-top: 6px;
   font-size: 0.893em;
   line-height: 1.8;
   text-align: center;
-  color: var(--ink-soft, #666);
+  color: var(--om-ink-soft);
   text-wrap: pretty;
 }
 
@@ -392,7 +451,8 @@
   margin: 0;
   padding-top: 2px;
   font-size: 0.786em;
-  color: var(--ink-dim, #888);
+  color: var(--om-ink-dim);
+  opacity: 0.85;
 }
 
 /* ------------------------------------------------------------------ 七天 */
@@ -406,8 +466,8 @@
 .om-strip-title {
   margin: 0;
   font-size: 0.786em;
-  letter-spacing: 0.04em;
-  color: var(--ink-dim, #888);
+  letter-spacing: 0.06em;
+  color: var(--om-ink-dim);
 }
 
 .om-chips {
@@ -423,20 +483,24 @@
   padding: 6px 9px;
   font: inherit;
   font-size: 0.786em;
-  border: 1px solid var(--line, rgba(128, 128, 128, 0.3));
+  border: 1px solid var(--om-hair-soft);
   border-radius: var(--radius-md, 9px);
-  background: transparent;
-  color: var(--ink-soft, #666);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--om-ink-soft);
   cursor: pointer;
+  text-shadow: none;
+  transition: background 120ms ease, border-color 120ms ease;
 }
 
 .om-chip:hover {
-  background: var(--hover, rgba(128, 128, 128, 0.12));
+  background: rgba(255, 255, 255, 0.12);
+  border-color: var(--om-gold-dim);
 }
 
 .om-chip-on {
-  border-color: var(--accent, #4a86e8);
-  color: var(--ink, inherit);
+  border-color: var(--om-gold);
+  background: rgba(224, 189, 124, 0.14);
+  color: var(--om-ink);
 }
 
 .om-chip-date {
@@ -445,12 +509,12 @@
 
 .om-chip-tier {
   font-size: 0.857em;
-  color: var(--ink, inherit);
+  color: var(--om-ink);
 }
 
 .om-chip-mark {
   font-size: 0.714em;
-  color: var(--accent, #4a86e8);
+  color: var(--om-gold);
 }
 
 /* ------------------------------------------------------------------ 抽签 */
@@ -465,17 +529,21 @@
   max-width: 360px;
   margin: 0 auto;
   border-radius: var(--radius-lg, 14px);
-  background: var(--paper-2, rgba(128, 128, 128, 0.06));
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
 }
 
 /*
  * 揭晓时卡片还会带 `om-reveal` 这个类（只在「刚抽出来」那一次渲染上）。
- * 想在视频之后再加一点淡入/翻转，把关键帧写在这里，例如：
- *   .om-reveal { animation: om-fade 260ms ease-out both; }
- *   @keyframes om-fade { from { opacity: 0; transform: translateY(6px) } }
+ * 想在视频之后再加一点淡入/翻转，把关键帧写在这里。
  */
 .om-reveal {
-  /* 留空：动画主体是 mp4，这里只是钩子。 */
+  animation: om-reveal-in 320ms ease-out both;
+}
+
+@keyframes om-reveal-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
 }
 
 /* ------------------------------------------------------------------ 落款 */
@@ -490,16 +558,18 @@
   gap: 10px;
   margin-top: 6px;
   padding-top: 12px;
-  border-top: 1px solid var(--line, rgba(128, 128, 128, 0.24));
+  border-top: 1px solid var(--om-hair-soft);
 }
 
 .om-avatar {
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   flex: 0 0 auto;
   border-radius: 50%;
   object-fit: cover;
-  background: var(--paper-2, rgba(128, 128, 128, 0.1));
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--om-gold-dim);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.25);
 }
 
 /* 没有头像素材时也不留破图：宽高撑住，背景色兜底 */
@@ -518,43 +588,29 @@
   margin: 0;
   font-size: 0.857em;
   font-weight: 600;
-  color: var(--ink-soft, #666);
+  color: var(--om-ink-soft);
 }
 
 .om-foot-note {
   margin: 0;
   font-size: 0.821em;
   line-height: 1.6;
-  color: var(--ink-dim, #888);
+  color: var(--om-ink-dim);
 }
 
 /* 只给拉丁文字用斜体；中文栏位不会进这个 em */
 .om-foot-wish {
   font-style: italic;
   letter-spacing: 0.01em;
+  color: var(--om-gold);
 }
 
-/*
- * 动图/静图背景（GIF、WebP、PNG）。
- *
- * 小图铺满宽面板一定会放大（256px 铺 700px 就是 2.7 倍），与其让它「糊」得像糊图，
- * 不如**主动做成柔光层**：加大模糊 + 轻微过扫（避免模糊后边缘透出）+ 压暗。
- * 视觉上像磨砂玻璃，而不是拉伸失败的位图。
- * 换成 ≥1024px 的素材或视频时，把 blur 去掉即可恢复清晰（视频那条路本来就不糊）。
- */
-.om-bg-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  filter: blur(18px) saturate(1.05) brightness(0.55);
-  transform: scale(1.12);
-}
-
-/* 动图背景时卡片同样半透明，让底下的动效透出来 */
-.om-shell:has(.om-bg-image) .om-card,
-.om-shell:has(.om-bg-image) .om-face {
-  background: color-mix(in srgb, var(--paper, #191d24) 82%, transparent);
-  backdrop-filter: blur(2px);
+/* 宿主给的是浅色主题时，这一页仍然保持自己的深底浅字（上面那套色板不跟主题走） */
+@media (prefers-contrast: more) {
+  .om-shell {
+    --om-card: rgba(16, 18, 22, 0.94);
+    --om-ink-dim: #cdc2b1;
+  }
 }
 
 </style>
@@ -765,6 +821,14 @@ globalThis.__omikujiBundle = {
               media.playsInline = true;
             }
             bgLayer.append(media);
+            /*
+             * 播放失败（解码不支持、被浏览器策略拦、文件坏了）就把节点撤掉，
+             * 露出 CSS 里那层暖墨兜底背景——宁可没有动图，也不要一块黑块或灰块。
+             */
+            media.addEventListener('error', () => {
+              media.remove();
+              window.URL.revokeObjectURL(url);
+            }, { once: true });
             // 面板卸载时释放 blob 地址
             if (ctx.signal) ctx.signal.addEventListener('abort', () => window.URL.revokeObjectURL(url), { once: true });
             if (isVideo && typeof media.play === 'function') Promise.resolve(media.play()).catch(() => {});

@@ -195,6 +195,14 @@ export default {
               media.playsInline = true;
             }
             bgLayer.append(media);
+            /*
+             * 播放失败（解码不支持、被浏览器策略拦、文件坏了）就把节点撤掉，
+             * 露出 CSS 里那层暖墨兜底背景——宁可没有动图，也不要一块黑块或灰块。
+             */
+            media.addEventListener('error', () => {
+              media.remove();
+              window.URL.revokeObjectURL(url);
+            }, { once: true });
             // 面板卸载时释放 blob 地址
             if (ctx.signal) ctx.signal.addEventListener('abort', () => window.URL.revokeObjectURL(url), { once: true });
             if (isVideo && typeof media.play === 'function') Promise.resolve(media.play()).catch(() => {});

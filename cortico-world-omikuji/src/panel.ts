@@ -265,6 +265,9 @@ export function panelSnapshot(deps: PanelDeps, wanted?: string): PanelSnapshot {
   };
 }
 
+/** 缺素材的提醒只报一次：面板每轮快照都会问 video，刷屏会把日志埋掉。 */
+let missingDrawVideoReported = false;
+
 /**
  * 面板方法入口。
  *
@@ -283,7 +286,10 @@ export async function panelInvoke(
 
   if (method === 'video') {
     const file = drawVideo(deps);
-    if (!file) console.info('[omikuji] 没有 assets/draw.mp4，抽签不播动画。');
+    if (!file && !missingDrawVideoReported) {
+      missingDrawVideoReported = true;
+      console.info(`[omikuji] 没找到 ${DRAW_VIDEO}（包目录 ${deps.packageDir}），抽签不播动画。`);
+    }
     return file ?? { absent: true };
   }
   if (method === 'background') {

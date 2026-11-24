@@ -84,18 +84,18 @@ npm publish --registry=https://registry.npmjs.org/ --cache E:\DSH-PET\.npm-cache
 - **种子** = 每天的**真随机盐**：只有**真抽签**（工具 / 面板「抽今天的签」）时才 `crypto.randomBytes` 现摇一个，落盘 `omikuji-days.json`，只留七天。读（系统前缀、打开面板、回看）**不产生随机**。
 - **没抽过的日子 = 旧版那套**：那天没人抽签，事后回看它就用「日期 + 固定本机盐（`omikuji-salt.json`）」，与 0.1.3 算出来的一致；七天以外的日期同理。
 - **两种措辞模式**：`wording: "pet"`（默认，桌宠按约束自己写，当天首次落盘、同日只认第一份）／`"builtin"`（签库成句，不花模型）。
-- **面板「今日一签」**：牌扣着 →「抽今天的签」翻开 → 七天横排回看。只读，不产生新的随机（今天的盐由第一次读到签的那次请求生成）。
+- **面板「今日一签」**：牌扣着 →「抽今天的签」翻开 → 七天横排回看。**读是纯的**：只有「抽」那一次才给当天落盐；没抽过的日期、超出七天的旧日期，一律用「日期 + 本机固定盐」算，结果与 0.1.3 逐字节一致。
 - **免责句**只在面板牌面上，回执里不带（回执每轮都进上下文，重复会变噪音）。
-- **名字不绑形象**：文案用的意象是船/灯/雨/菜畦这类，不指向任何具体角色——用户家的桌宠可能是任何形象。
 - **名字不绑形象**：文案用的意象是船/灯/雨/菜畦这类，不指向任何具体角色——用户家的桌宠可能是任何形象。
 
 ## 已知缺口
 
-- **还没在真的 Coopanion 实例里装过**。验证只到：单元测试 29 项、干装载（manifest/配置/工具/面板）、假 DOM 跑真客户端、打包检查。所以 `cortico.tags` 里带 `experimental`。
-- 没有 `screenshots`，没有 `icon`——市场详情页的图位是空的。
-- 装一次跑通后：摘掉 `experimental`、补图，升 `0.2.0`。
+- **0.4.1 在真机上验过，挂了**：抽签动画、动态背景、头像三样都不出现。原因见下面第 5 条坑。`0.4.2` 修的就是它，装上后要再验一遍。
+- 没有 `screenshots`——市场详情页的图位还是空的（`icon` 已经有了）。
+- 市集 catalog 还停在 `0.1.3`：`cortico-extensions` 的同步 Action 按计划跑，等它把最新版抓上去。
+- 真机跑通后：摘掉 `experimental`、补 `screenshots`，再升一号。
 
-## 环境上的三个坑
+## 环境上的坑
 
 1. **registry**：`E:\DSH-PET\.npmrc` 与用户目录的 `.npmrc` 都指向 `registry.npmmirror.com`。`npm publish` 不加 `--registry=https://registry.npmjs.org/` 会发到镜像上，而扩展市场读的是 npmjs.org。所有 npm 命令还要带 `--cache E:\DSH-PET\.npm-cache`，否则会去写 `%LOCALAPPDATA%` 被拒。
 2. **pnpm 在沙箱里跑不了**（要开 `AppData\Local\pnpm-store-operation-locks\all-stores.lock`，工作区外，拒访问）。装扩展请走桌宠扩展页的「从本地目录安装」，填 `E:\DSH-PET\精灵日签\cortico-world-omikuji` 的绝对路径；宿主自己会跑 pnpm 建链接。
@@ -108,6 +108,11 @@ npm publish --registry=https://registry.npmjs.org/ --cache E:\DSH-PET\.npm-cache
    ```
 
    它只是开发工具链的东西，不进 `files`、不影响发布。干净的机器上想重建 `.cortico-src`：`Copy-Item node_modules\cortico .cortico-src -Recurse`（先删 junction，再复制真包）。
+5. **`WorldContext.packageDir` 是 bot 的包目录，不是本 World 的包目录**（框架原文：「bot 代码包目录，供包内模板与资产使用」）。照它拼 `assets/draw.mp4` 在自己机器上测不出来（自检工具显式传了正确目录），一装进真宿主就全灭：真机里它指向 fatfish 的包。**包内素材一律用 `import.meta.url` 反推**（见 `src/assets.ts` 的 `OWN_PACKAGE_DIR`），`ctx.packageDir` 只当兜底。签库 `data/signs.json` 一直是对的，因为它本来就走的 `import.meta.url`。
+4. **PowerShell 5.1 + GitHub API 的三个连环坑**（发 0.4.1 时踩的，写 Release 用得上）：
+   - `gh release create -d '{...}'` 这种带 JSON 的单引号参数会被 PowerShell 5.1 吃掉双引号，JSON 变废。**改成把 body 写进文件，用 `--data-binary @file` 提交**。
+   - `Invoke-RestMethod` 的消息体里带中文会 422，纯 ASCII 就 200。同样的错在 Release 资产名上也存在：**资产 `name` 必须是 ASCII**，中文放进 `label`。
+   - 别拿 PowerShell 的文本替换去改 UTF-8 源文件（会把中文写成乱码，`src/world.ts` 已经中过一次）；改文档用编辑器/写入工具，或 `[System.IO.File]::ReadAllText` + `WriteAllText` 并显式指定 UTF8。
 
 ## 明细文档
 

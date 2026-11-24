@@ -10,6 +10,7 @@ import {
 } from './config.ts';
 import { loadSignContent } from './content.ts';
 import { OMIKUJI_TOOL_DECLS, OmikujiWorld } from './world.ts';
+import { resolvePackageDir } from './assets.ts';
 
 export const OMIKUJI: WorldDefinition<OmikujiConfigSection> = {
   id: 'omikuji',
@@ -39,7 +40,9 @@ export const OMIKUJI: WorldDefinition<OmikujiConfigSection> = {
       cfg: ctx.cfg,
       timezone: ctx.timezone,
       dataDir: ctx.dataDir,
-      packageDir: ctx.packageDir,
+      // 注意：不能用 ctx.packageDir——那是 **bot** 的包目录，不是本 World 的。
+      // 媒体与签库都在本包内，路径必须由本模块位置反推（见 assets.ts）。
+      packageDir: resolvePackageDir(ctx.packageDir),
       content: loadSignContent(),
     }),
   describe: {
