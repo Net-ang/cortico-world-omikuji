@@ -1,9 +1,21 @@
 {
   "name": "cortico-world-omikuji",
-  "version": "0.2.0",
+  "version": "0.3.2",
   "type": "module",
   "description": "精灵日签：每天一张签。种子由日期与本机盐合成，同机同日恒定，换机器就不同。措辞可用内置签库，也可以让桌宠自己写并落盘。",
-  "author": "net_ang",
+  "author": {
+    "name": "奶糖_net",
+    "url": "https://github.com/Net-ang"
+  },
+  "contributors": [],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Net-ang/cortico-world-omikuji.git"
+  },
+  "homepage": "https://github.com/Net-ang/cortico-world-omikuji#readme",
+  "bugs": {
+    "url": "https://github.com/Net-ang/cortico-world-omikuji/issues"
+  },
   "license": "MIT",
   "keywords": [
     "cortico-world",

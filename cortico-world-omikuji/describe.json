@@ -24,14 +24,18 @@
     },
     {
       "name": "omikuji_record",
-      "description": "Store the slip you wrote for a date, in pet wording mode only. The first text stored for a date is kept and every later draw returns it unchanged, so record once and do not rewrite it. Returns the stored text.",
+      "description": "Store the slip you wrote for a date, in pet wording mode only: the verse and, optionally, your own reading of it. The first record for a date is kept and every later draw returns it unchanged, so record once and do not rewrite it. Returns what was stored.",
       "parameters": {
         "type": "object",
         "additionalProperties": false,
         "properties": {
           "text": {
             "type": "string",
-            "description": "The slip itself: two short lines, 14–18 characters in total, no predictions stated as fact."
+            "description": "The verse: two short lines, 14–18 characters in total, no predictions stated as fact."
+          },
+          "reading": {
+            "type": "string",
+            "description": "Your reading of the slip: two or three sentences, 40–120 characters, about how to spend the day — what to do and what not to do. Do not restate the star numbers and do not turn it into a prediction."
           },
           "date": {
             "type": "string",

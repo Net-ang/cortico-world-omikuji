@@ -9,6 +9,7 @@ import type { OmikujiConfigSection } from '../src/config.ts';
 import { OmikujiWorld } from '../src/world.ts';
 
 const content = loadSignContent();
+const PACKAGE_DIR = join(import.meta.dirname, '..');
 const dataDir = join(import.meta.dirname, '..', '.tmp-test', 'world');
 
 function makeWorld(cfg: Partial<OmikujiConfigSection> = {}): OmikujiWorld {
@@ -17,6 +18,7 @@ function makeWorld(cfg: Partial<OmikujiConfigSection> = {}): OmikujiWorld {
     cfg: { enabled: true, salt: '', wording: 'builtin', ...cfg },
     timezone: 'Asia/Shanghai',
     dataDir,
+    packageDir: PACKAGE_DIR,
     content,
   });
 }
@@ -41,7 +43,11 @@ test('工具回执就是那张签，且带日期参数时按日期算', async ()
   assert.match(receipt as string, new RegExp(expected.poem));
   // 免责声明只出现在界面（面板牌面），回执里不带——不然每次说话都要重复一遍。
   assert.ok(!(receipt as string).includes('相信科学'), 'the receipt must not carry the disclaimer');
-  assert.match(receipt as string, /幸运色：\S+$/, 'the receipt ends with the lucky colour');
+  // 回执现在比过去厚：节气月相、详批、六项星级、幸运四项并成一行
+  assert.match(receipt as string, /月相·/, 'almanac line');
+  assert.match(receipt as string, /详批：/);
+  assert.match(receipt as string, /恋爱运 ★{1,5}☆{0,4}/);
+  assert.match(receipt as string, /幸运　\S+ · \S+ · \d{1,2} · [东南西北]{1,2}$/m);
 
   const again = await tool.handler({ date: '2026-11-23' }, {} as never);
   assert.equal(again, receipt, 'same date must give the same receipt');

@@ -18,12 +18,16 @@ export function checkSignContent(content: SignContent): SignContent {
     if (tier.max < tier.min) throw new Error(`signs.json: tier ${tier.id} has max < min`);
     if (tier.poems.length === 0) throw new Error(`signs.json: tier ${tier.id} has no poems`);
     if (tier.glosses.length === 0) throw new Error(`signs.json: tier ${tier.id} has no glosses`);
+    if (tier.readings.length === 0) throw new Error(`signs.json: tier ${tier.id} has no readings`);
     if (!content.petTones[tier.id]) throw new Error(`signs.json: tier ${tier.id} has no petTone`);
     expected = tier.max + 1;
   }
   if (expected !== 101) throw new Error(`signs.json: tiers cover 0–${expected - 1}, expected 0–100`);
-  for (const key of ['yi', 'ji', 'colors', 'images'] as const) {
+  for (const key of ['yi', 'ji', 'colors', 'images', 'luckyItems', 'directions', 'domains'] as const) {
     if (content[key].length === 0) throw new Error(`signs.json: ${key} must not be empty`);
+  }
+  for (const key of ['item', 'color', 'number', 'direction'] as const) {
+    if (!content.effects[key]) throw new Error(`signs.json: effects.${key} is required`);
   }
   return content;
 }

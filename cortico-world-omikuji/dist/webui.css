@@ -32,7 +32,42 @@
   color: var(--ink-dim, #888);
 }
 
+/* 面板顶部的引言：压低对比，读起来像句子而不是说明。 */
+.om-intro {
+  margin: 0;
+  max-width: 46em;
+  font-size: 13px;
+  line-height: 1.85;
+  color: var(--ink-soft, #666);
+  text-wrap: pretty;
+}
+
 /* ---------------------------------------------------------------- 扣着的牌 */
+
+/* 「封」字印章：纯装饰，抽过之后就不再出现。 */
+.om-sealed {
+  position: relative;
+  overflow: hidden;
+}
+
+.om-seal-mark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-8deg);
+  font-size: 120px;
+  line-height: 1;
+  font-family: var(--serif, "Songti SC", "SimSun", serif);
+  color: var(--ink, #333);
+  opacity: 0.06;
+  pointer-events: none;
+  user-select: none;
+}
+
+.om-sealed > .om-face-lead,
+.om-sealed > .om-btn {
+  position: relative;
+}
 
 .om-face {
   display: flex;
@@ -179,6 +214,58 @@
   color: var(--ink-soft, #666);
 }
 
+/* 节气与月相那一行：时令感，压到最轻。 */
+.om-almanac {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: var(--ink-dim, #888);
+}
+
+/* 详批：比解语长、比签文轻。 */
+.om-reading {
+  margin: 0;
+  padding-left: 4.5em;
+  text-indent: -4.5em;
+  font-size: 13px;
+  line-height: 1.85;
+  color: var(--ink-soft, #666);
+  text-wrap: pretty;
+}
+
+/* 六项运势 */
+.om-stars {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px 18px;
+  padding: 2px 0;
+}
+
+.om-star {
+  display: flex;
+  gap: 8px;
+  font-size: 12.5px;
+}
+
+.om-star-k {
+  flex: 0 0 4.5em;
+  color: var(--ink-dim, #888);
+}
+
+.om-star-v {
+  color: var(--accent, #4a86e8);
+  letter-spacing: 0.06em;
+}
+
+/* 幸运四项：一行写完，不占四行。 */
+.om-lucky {
+  margin: 0;
+  padding-top: 2px;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--ink-dim, #888);
+}
+
 .om-fact {
   display: flex;
   gap: 10px;
@@ -199,6 +286,17 @@
   display: flex;
   gap: 8px;
   padding-top: 2px;
+}
+
+/* 翻开后的收束句：比签文轻、比免责重，居中收尾。 */
+.om-blessing {
+  margin: 0;
+  padding-top: 6px;
+  font-size: 12.5px;
+  line-height: 1.8;
+  text-align: center;
+  color: var(--ink-soft, #666);
+  text-wrap: pretty;
 }
 
 .om-disclaimer {
@@ -264,4 +362,29 @@
 .om-chip-mark {
   font-size: 10px;
   color: var(--accent, #4a86e8);
+}
+
+/* ------------------------------------------------------------------ 抽签 */
+
+/*
+ * 抽签动画就是包里的 assets/draw.mp4：点「抽今天的签」时在牌的位置播一遍，播完再揭晓。
+ * 下面这条只管视频摆放；想改时长/节奏就剪视频本身。
+ */
+.om-reveal-video {
+  display: block;
+  width: 100%;
+  max-width: 360px;
+  margin: 0 auto;
+  border-radius: var(--radius-lg, 14px);
+  background: var(--paper-2, rgba(128, 128, 128, 0.06));
+}
+
+/*
+ * 揭晓时卡片还会带 `om-reveal` 这个类（只在「刚抽出来」那一次渲染上）。
+ * 想在视频之后再加一点淡入/翻转，把关键帧写在这里，例如：
+ *   .om-reveal { animation: om-fade 260ms ease-out both; }
+ *   @keyframes om-fade { from { opacity: 0; transform: translateY(6px) } }
+ */
+.om-reveal {
+  /* 留空：动画主体是 mp4，这里只是钩子。 */
 }

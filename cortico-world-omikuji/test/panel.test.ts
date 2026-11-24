@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { loadSignContent } from '../src/content.ts';
@@ -7,9 +7,10 @@ import { drawSign } from '../src/daily.ts';
 import { readDaySalt } from '../src/daysalt.ts';
 import { saveWording } from '../src/wording.ts';
 import { nowIso } from 'cortico/core/util.ts';
-import { PANEL_ID, panelInvoke, panelSnapshot, type PanelDeps } from '../src/panel.ts';
+import { DRAW_VIDEO, PANEL_ID, panelInvoke, panelSnapshot, type PanelDeps } from '../src/panel.ts';
 import { OmikujiWorld } from '../src/world.ts';
 
+const PACKAGE_DIR = join(import.meta.dirname, '..');
 const content = loadSignContent();
 const root = join(import.meta.dirname, '..', '.tmp-test', 'panel');
 const SALT = 'feedfacefeedface';
@@ -17,10 +18,11 @@ const TODAY = '2026-11-23';
 
 function deps(mode: 'builtin' | 'pet', dir: string): PanelDeps {
   const cfg = { enabled: true, salt: SALT, wording: mode };
-  const world = new OmikujiWorld({ cfg, timezone: 'Asia/Shanghai', dataDir: dir, content });
+  const world = new OmikujiWorld({ cfg, timezone: 'Asia/Shanghai', dataDir: dir, packageDir: PACKAGE_DIR, content });
   return {
     mode,
     dataDir: dir,
+    packageDir: PACKAGE_DIR,
     today: TODAY,
     signFor: (date: string) => world.signFor(date),
     drawFor: (date: string) => world.drawFor(date),
@@ -63,16 +65,19 @@ test('七天回看：今天在最前，逐天倒序', () => {
   }
 });
 
-test('pet 模式：写过就报原文，没写就报 null 且不编造', () => {
+test('pet 模式：写过就报原文与解签，没写就报 null 且不编造', () => {
   const dir = freshDir('pet');
   const written = '檐下站一会儿，等雨小些再走。';
+  const reading = '今天不必赶。把想做的排一件就够，剩下的留给明天。';
   const before = panelSnapshot(deps('pet', dir));
   assert.equal(before.written, null);
+  assert.equal(before.writtenReading, null);
   assert.equal(before.recent[0]!.written, false);
 
-  saveWording(dir, TODAY, written, '2026-11-23T09:00:00+08:00');
+  saveWording(dir, TODAY, written, reading, '2026-11-23T09:00:00+08:00');
   const after = panelSnapshot(deps('pet', dir));
   assert.equal(after.written, written);
+  assert.equal(after.writtenReading, reading, '解签也要报出来');
   assert.equal(after.recent[0]!.written, true);
   assert.equal(after.recent[1]!.written, false, 'neighbouring days stay unwritten');
 });
@@ -101,6 +106,22 @@ test('面板方法只认 snapshot，别的都报错', async () => {
   await assert.rejects(panelInvoke(deps('builtin', dir), PANEL_ID, 'draw', ['2026-02-30']), RangeError);
 });
 
+test('抽签动画：video 方法把包里那个 mp4 的流式回执交出来', async () => {
+  const out = (await panelInvoke(deps('builtin', freshDir('video')), PANEL_ID, 'video', [])) as {
+    $file?: { mime: string; path: string; bytes: number; sha256: string };
+  };
+  assert.ok(out.$file, 'assets/draw.mp4 在包里时必须给 $file');
+  assert.equal(out.$file.mime, 'video/mp4');
+  assert.ok(out.$file.path.endsWith(DRAW_VIDEO.replaceAll('/', '\\')) || out.$file.path.endsWith(DRAW_VIDEO));
+  assert.ok(existsSync(out.$file.path));
+  assert.ok(out.$file.bytes > 100_000, `动画应该是个真视频，拿到 ${out.$file.bytes} 字节`);
+  assert.match(out.$file.sha256, /^[0-9a-f]{64}$/);
+
+  // 包目录里没有这个素材时不能抛错，回 { absent: true } 让面板直接揭晓
+  const bare = { ...deps('builtin', freshDir('video-bare')), packageDir: join(root, 'no-such-package') };
+  assert.deepEqual(await panelInvoke(bare, PANEL_ID, 'video', []), { absent: true });
+});
+
 test('面板只有 draw 才摇盐：snapshot 和回看都不摇', async () => {
   const dir = freshDir('panel-draw');
   const d = deps('builtin', dir);
@@ -120,7 +141,7 @@ test('面板只有 draw 才摇盐：snapshot 和回看都不摇', async () => {
 test('World 的 webUi 声明了面板并接上 invoke', async () => {
   const dir = freshDir('world');
   const cfg = { enabled: true, salt: SALT, wording: 'pet' as const };
-  const world = new OmikujiWorld({ cfg, timezone: 'Asia/Shanghai', dataDir: dir, content });
+  const world = new OmikujiWorld({ cfg, timezone: 'Asia/Shanghai', dataDir: dir, packageDir: PACKAGE_DIR, content });
   const decl = world.webUi('zh');
   assert.ok(decl.panels?.some((panel) => panel.id === PANEL_ID), 'panel must be declared');
   assert.equal(decl.badges?.[0]?.value, '桌宠写');

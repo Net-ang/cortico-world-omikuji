@@ -17,6 +17,7 @@ import type { OmikujiConfigSection } from '../src/config.ts';
 import { OmikujiWorld } from '../src/world.ts';
 
 const content = loadSignContent();
+const PACKAGE_DIR = join(import.meta.dirname, '..');
 const root = join(import.meta.dirname, '..', '.tmp-test', 'daysalt');
 const TZ = 'Asia/Shanghai';
 const TODAY = nowIso(TZ).slice(0, 10);
@@ -31,7 +32,7 @@ function freshDir(name: string): string {
 
 function world(dir: string, overrides: Partial<OmikujiConfigSection> = {}): OmikujiWorld {
   const cfg: OmikujiConfigSection = { enabled: true, salt: FIXED, wording: 'pet', ...overrides };
-  return new OmikujiWorld({ cfg, timezone: TZ, dataDir: dir, content });
+  return new OmikujiWorld({ cfg, timezone: TZ, dataDir: dir, packageDir: PACKAGE_DIR, content });
 }
 
 test('读不产生随机：signFor 不摇盐，没抽过的日子给的就是「日期 + 固定盐」', () => {

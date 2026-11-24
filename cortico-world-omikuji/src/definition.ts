@@ -26,6 +26,7 @@ export const OMIKUJI: WorldDefinition<OmikujiConfigSection> = {
       cfg: ctx.cfg,
       timezone: ctx.timezone,
       dataDir: ctx.dataDir,
+      packageDir: ctx.packageDir,
       content: loadSignContent(),
     }),
   describe: {

@@ -1,5 +1,7 @@
 # 发布手册
 
+作者：**奶糖_net**（npm 登录账号是 `net_ang`，包里的 `author` 字段署名 `奶糖_net`）
+
 包已经准备好，缺的只是扣扳机这一步。谁跑都行——我、你、或让桌宠通过它的 shell 跑，命令一样。
 
 ## 一条命令
@@ -13,7 +15,7 @@ npm publish --registry=https://registry.npmjs.org/ --cache E:\DSH-PET\.npm-cache
 
 `--cache` 也不能省：不改缓存目录时 npm 会去写 `%LOCALAPPDATA%\npm-cache`，本机沙箱拒绝。
 
-账号已登录（`net_ang`）。开了 2FA 的话加 `--otp=<六位码>`，或者干脆在你自己的终端里跑。
+npm 登录账号是 `net_ang`（发布的身份），包里的署名是 `author.name = 奶糖_net`（市场和扩展卡片显示的）。开了 2FA 的话加 `--otp=<六位码>`，或者干脆在你自己的终端里跑。
 
 ## 发完确认
 

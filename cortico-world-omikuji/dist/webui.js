@@ -19,9 +19,14 @@ const TEXT = {
     lookBack: '回看',
     poem: '签文',
     gloss: '解语',
+    reading: '详批：',
     yi: '宜',
     ji: '忌',
+    item: '幸运物',
+    number: '幸运数字',
+    direction: '幸运方位',
     color: '幸运色',
+    lucky: '幸运',
     writtenBy: '桌宠写下的这一签',
     notYet: '桌宠还没写这一签 —— 在对话里问一句「今日气运」，它会用自己的话念给你。',
     tone: '这一档的分寸',
@@ -30,6 +35,10 @@ const TEXT = {
     writtenMark: '已写',
     disclaimer: '相信科学，仅供娱乐参考。',
     failed: '没抽成',
+    sealMark: '封',
+    blessing: '愿你今天顺手抽到的那一签，刚好对上此刻的心情。',
+    intro:
+      '在桌宠与世界交汇的日常里，总有些时刻需要一点轻盈的停顿——不需要宏大的占卜，也不必把日子过得像一张排满任务的清单。把每天的签文做成一件随手可翻的小事，像窗边落下的微光，像炉火旁刚好温热的杯盏，陪你在敲字、发呆、等编译或刷屏的间隙，抽一张属于今天的签。',
   },
   en: {
     title: "Today's slip",
@@ -41,9 +50,14 @@ const TEXT = {
     lookBack: 'Earlier',
     poem: 'Verse',
     gloss: 'Reading',
+    reading: 'Detail: ',
     yi: 'Favour',
     ji: 'Avoid',
+    item: 'Lucky item',
+    number: 'Lucky number',
+    direction: 'Lucky direction',
     color: 'Lucky colour',
+    lucky: 'Lucky',
     writtenBy: 'Written by the pet',
     notYet: 'The pet has not written this slip yet. Ask it about today in chat and it will say it in its own words.',
     tone: 'Tone for this grade',
@@ -52,6 +66,10 @@ const TEXT = {
     writtenMark: 'written',
     disclaimer: 'For fun only. Nothing here predicts anything.',
     failed: 'Draw failed',
+    sealMark: 'sealed',
+    blessing: 'May the slip you happened to draw today land close to how you feel right now.',
+    intro:
+      'Some moments in the everyday where the pet and the world meet ask for a light pause — no grand divination, no day lived like a checklist. Make the daily slip a small thing you can turn over in passing: a glimmer by the window, a cup still warm beside the stove. Draw one for today, in the gaps between typing, staring off, waiting for a build, or scrolling.',
   },
 };
 
@@ -87,15 +105,58 @@ export default {
         const strip = el('section', 'om-strip');
         const chips = el('div', 'om-chips');
         strip.append(el('p', 'om-strip-title', T.recent), chips);
-        app.append(head, stage, strip);
+        const intro = el('p', 'om-intro', T.intro);
+        app.append(head, intro, stage, strip);
         ctx.root.append(app);
 
         let snapshot = null;
+        /** 上一次渲染是不是「刚抽出来」——用来只在翻开那一刻挂动画类。 */
+        let justDrew = false;
 
         const setBusy = (button, busy, idleLabel) => {
           if (!button) return;
           button.disabled = busy;
           button.textContent = busy ? T.drawing : idleLabel;
+        };
+
+        /*
+         * 抽签动画：服务端把包里的 mp4 流式送过来（面板方法 video）。
+         * 拿不到、播不完、浏览器不给播，都直接揭晓——动画是点缀，不能挡住签。
+         */
+        const playDrawAnimation = async () => {
+          let url = null;
+          let video = null;
+          try {
+            const blob = await ctx.invokeBinary('video');
+            // 服务端没有素材时回的是 JSON，blob 类型就不是视频了
+            if (!blob || !/^video\//.test(blob.type ?? '')) return;
+            url = window.URL.createObjectURL(blob);
+            video = document.createElement('video');
+            video.className = 'om-reveal-video';
+            video.src = url;
+            video.muted = true;          // 静音才会自动播；想在抽签时出声把这里改成 false
+            video.playsInline = true;
+            video.autoplay = true;
+            stage.replaceChildren(video);
+            await new Promise((resolve) => {
+              let settled = false;
+              const finish = () => {
+                if (settled) return;
+                settled = true;
+                resolve();
+              };
+              video.addEventListener('ended', finish, { once: true });
+              video.addEventListener('error', finish, { once: true });
+              // 兜底：万一 ended 一直不来，也不能把面板卡在视频上
+              ctx.timeout(finish, 8000);
+              if (typeof video.play === 'function') Promise.resolve(video.play()).catch(finish);
+            });
+          } catch {
+            // 没有视频或取不到：静默跳过
+          } finally {
+            if (video && typeof video.remove === 'function') video.remove();
+            if (url) window.URL.revokeObjectURL(url);
+          }
         };
 
         /*
@@ -106,8 +167,10 @@ export default {
           setBusy(button, true, idleLabel);
           try {
             snapshot = await ctx.invoke(method, date ? [date] : []);
+            justDrew = method === 'draw';
             // 今天这一页翻开过就不再扣回去；回看别的日子不动这个标记。
             if (method === 'draw' && !date) ctx.memo.set('drawn', true);
+            if (method === 'draw') await playDrawAnimation();
             render();
           } catch (err) {
             stage.replaceChildren();
@@ -126,7 +189,9 @@ export default {
 
         const faceDown = () => {
           stage.replaceChildren();
-          const box = el('div', 'om-face');
+          const box = el('div', 'om-face om-sealed');
+          // 封着的印子只是装饰，动画要接的话接在 .om-reveal（见 webui.css）。
+          box.append(el('span', 'om-seal-mark', T.sealMark));
           box.append(el('p', 'om-face-lead', T.faceLead));
           const button = el('button', 'om-btn om-btn-primary', T.draw);
           button.type = 'button';
@@ -136,7 +201,9 @@ export default {
         };
 
         const renderCard = (s) => {
-          const card = el('div', `om-card${s.date === s.today ? '' : ' om-card-past'}`);
+          // 刚抽出来的那一张挂 om-reveal：抽签动画的入口就这一个类，其余状态不带。
+          const reveal = justDrew && s.date === s.today ? ' om-reveal' : '';
+          const card = el('div', `om-card${s.date === s.today ? '' : ' om-card-past'}${reveal}`);
           const top = el('div', 'om-card-top');
           top.append(
             el('span', 'om-lot', `第 ${s.sign.lot} 签`),
@@ -147,9 +214,11 @@ export default {
           card.append(top);
 
           const body = el('div', 'om-card-body');
+          if (s.sign.almanac) body.append(el('p', 'om-almanac', s.sign.almanac));
           if (s.mode === 'pet') {
             if (s.written) {
               body.append(el('p', 'om-written', s.written), el('p', 'om-written-by', T.writtenBy));
+              if (s.writtenReading) body.append(el('p', 'om-reading', `${T.reading}　${s.writtenReading}`));
             } else {
               body.append(el('p', 'om-pending', T.notYet));
               if (s.sign.tone) body.append(factRow(T.tone, s.sign.tone));
@@ -157,13 +226,34 @@ export default {
             }
           } else {
             body.append(el('p', 'om-poem', s.sign.poem), el('p', 'om-gloss', s.sign.gloss));
+            if (s.sign.reading) body.append(el('p', 'om-reading', `${T.reading}　${s.sign.reading}`));
           }
+
+          // 六项运势：两列，星条用实心/空心格
+          if (Array.isArray(s.sign.stars) && s.sign.stars.length) {
+            const grid = el('div', 'om-stars');
+            for (const star of s.sign.stars) {
+              const cell = el('div', 'om-star');
+              cell.append(
+                el('span', 'om-star-k', star.label),
+                el('span', 'om-star-v', '★'.repeat(star.stars) + '☆'.repeat(Math.max(0, 5 - star.stars))),
+              );
+              grid.append(cell);
+            }
+            body.append(grid);
+          }
+
           body.append(
             factRow(T.yi, s.sign.yi),
             factRow(T.ji, s.sign.ji),
-            factRow(T.color, s.sign.color),
+            // 幸运四项并成一行：列出来只会把牌面撑成表格
+            el('p', 'om-lucky', `${T.lucky}　${s.sign.luckyItem} · ${s.sign.color} · ${s.sign.luckyNumber} · ${s.sign.luckyDirection}`),
           );
-          card.append(body, el('p', 'om-disclaimer', T.disclaimer));
+          card.append(
+            body,
+            el('p', 'om-blessing', T.blessing),
+            el('p', 'om-disclaimer', T.disclaimer),
+          );
 
           const actions = el('div', 'om-actions');
           const again = el('button', 'om-btn', T.again);

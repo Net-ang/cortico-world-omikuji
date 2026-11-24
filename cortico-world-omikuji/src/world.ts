@@ -44,7 +44,7 @@ export const OMIKUJI_TOOL_DECLS: readonly ToolSpec[] = [
   {
     name: 'omikuji_record',
     description:
-      'Store the slip you wrote for a date, in pet wording mode only. The first text stored for a date is kept and every later draw returns it unchanged, so record once and do not rewrite it. Returns the stored text.',
+      'Store the slip you wrote for a date, in pet wording mode only: the verse and, optionally, your own reading of it. The first record for a date is kept and every later draw returns it unchanged, so record once and do not rewrite it. Returns what was stored.',
     tags: ['write'],
     parameters: {
       type: 'object',
@@ -52,7 +52,12 @@ export const OMIKUJI_TOOL_DECLS: readonly ToolSpec[] = [
       properties: {
         text: {
           type: 'string',
-          description: 'The slip itself: two short lines, 14–18 characters in total, no predictions stated as fact.',
+          description: 'The verse: two short lines, 14–18 characters in total, no predictions stated as fact.',
+        },
+        reading: {
+          type: 'string',
+          description:
+            'Your reading of the slip: two or three sentences, 40–120 characters, about how to spend the day — what to do and what not to do. Do not restate the star numbers and do not turn it into a prediction.',
         },
         date: {
           type: 'string',
@@ -69,6 +74,8 @@ export interface OmikujiWorldOptions {
   cfg: OmikujiConfigSection;
   timezone: string;
   dataDir: string;
+  /** 包目录：面板的抽签动画素材在包内。 */
+  packageDir: string;
   content: SignContent;
 }
 
@@ -114,7 +121,8 @@ export class OmikujiWorld implements World {
         if (this.wording() === 'builtin') return formatSign(sign);
         const stored = readWording(this.#opts.dataDir, sign.date);
         if (stored) {
-          return `${stored.text}\n\n（${sign.date} 已记下的措辞。第 ${sign.lot} 签 · ${sign.tierLabel} · ${sign.score} 分）`;
+          const footer = `（${sign.date} 已记下的那份。第 ${sign.lot} 签 · ${sign.tierLabel} · ${sign.score} 分）`;
+          return stored.reading ? `${stored.text}\n\n${stored.reading}\n\n${footer}` : `${stored.text}\n\n${footer}`;
         }
         return formatBrief(sign);
       },
@@ -126,6 +134,8 @@ export class OmikujiWorld implements World {
       handler: async (args) => {
         const text = args.text;
         if (typeof text !== 'string') throw new TypeError('text must be a string');
+        const reading = args.reading;
+        if (reading !== undefined && typeof reading !== 'string') throw new TypeError('reading must be a string');
         const date = args.date;
         if (date !== undefined && typeof date !== 'string') {
           throw new TypeError('date must be a YYYY-MM-DD string');
@@ -135,12 +145,13 @@ export class OmikujiWorld implements World {
           this.#opts.dataDir,
           sign.date,
           text,
+          reading,
           nowIso(this.#opts.timezone),
         );
         const head = kept
-          ? `${sign.date} 已经记下了另一份正文，保留的是先写下的那份：`
-          : `已记下 ${sign.date} 的措辞：`;
-        return `${head}\n\n${stored.text}`;
+          ? `${sign.date} 已经记下了另一份，保留的是先写下的那份：`
+          : `已记下 ${sign.date} 的签文与解签：`;
+        return stored.reading ? `${head}\n\n${stored.text}\n\n${stored.reading}` : `${head}\n\n${stored.text}`;
       },
     };
     return [draw, record];
@@ -228,6 +239,7 @@ export class OmikujiWorld implements World {
     return {
       mode: this.wording(),
       dataDir: this.#opts.dataDir,
+      packageDir: this.#opts.packageDir,
       today: this.#today(),
       signFor: (date: string) => this.signFor(date),
       drawFor: (date: string) => this.drawFor(date),

@@ -2,6 +2,8 @@
 
 <img src="cortico-world-omikuji/assets/icon.png" width="128" align="right" alt="精灵日签">
 
+作者 **奶糖_net** · npm [`cortico-world-omikuji`](https://www.npmjs.com/package/cortico-world-omikuji) · MIT
+
 给 Coopanion / Cortico 桌宠的 World 扩展：**每天一张签，同一天在同一台机器上永远是同一张。**
 
 分数、档位、签号由代码算（种子 = 日期 + 这台机器的随机盐），措辞默认由桌宠自己写——只给它分数、档位和写作约束，句子是它说的。不联网、不要密钥、不花 token（切成内置文案模式连模型都不碰）。
