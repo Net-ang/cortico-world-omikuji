@@ -157,8 +157,9 @@ test('抽签动画：video 方法把包里那个 mp4 的流式回执交出来', 
 
 test('面板只有 draw 才摇盐：snapshot 和回看都不摇，且抽之前没有签', async () => {
   const dir = freshDir('panel-draw');
-  const d = deps('builtin', dir);
+  // 用真实今天当 this test 的 today，否则「今天」在面板眼里是未来，会被未来日期规则挡掉
   const realToday = nowIso('Asia/Shanghai').slice(0, 10);
+  const d = { ...deps('builtin', dir), today: realToday };
 
   const read = (await panelInvoke(d, PANEL_ID, 'snapshot', [realToday])) as { sign: unknown; date: string };
   assert.equal(readDaySalt(dir, realToday), null, 'snapshot 不该摇盐');

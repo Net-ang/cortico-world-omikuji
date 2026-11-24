@@ -36,10 +36,16 @@ const bad = (message: string) => {
   console.log(`FAIL  ${message}`);
 };
 
-/** 读 JSON，坏了就返回 null。 */
+/**
+ * 读 JSON，坏了就返回 null。
+ *
+ * 先剥 BOM：这个工作区的文件被别人（尤其是 PowerShell 5.1 的 Set-Content）写一次就会带上
+ * `EF BB BF`，而 `JSON.parse` 对 BOM 是硬报错的——之前就因为它误报了「没声明依赖」。
+ */
 function readJson(path: string): Record<string, unknown> | null {
   try {
-    return JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>;
+    const text = readFileSync(path, 'utf8').replace(/^\uFEFF/, '');
+    return JSON.parse(text) as Record<string, unknown>;
   } catch {
     return null;
   }

@@ -32,7 +32,7 @@ export const OMIKUJI_TOOL_DECLS: readonly ToolSpec[] = [
   {
     name: 'omikuji_draw',
     description:
-      "Draw the daily fortune slip. With no arguments it returns today's slip; pass date (YYYY-MM-DD) to read the slip of another day. The slip for a date is fixed on this machine, so drawing it again never changes it. In built-in wording mode the reply is the finished slip: lot number, grade, score, verse, reading, what to favour, what to avoid and a lucky colour. In pet wording mode the reply is the facts plus writing constraints instead, and omikuji_record stores the slip you write. Pass peek: true to find out whether today's slip has been drawn yet without drawing it.",
+      "Draw the daily fortune slip. With no arguments it returns today's slip; pass date (YYYY-MM-DD) to read the slip of another day. The slip for a date is fixed on this machine, so drawing it again never changes it. In built-in wording mode the reply is the finished slip: lot number, grade, score, verse, reading, what to favour, what to avoid and a lucky colour. In pet wording mode the reply is the facts plus writing constraints instead, and omikuji_record stores the slip you write. Pass peek: true to find out whether today's slip has been drawn yet without drawing it. Dates later than today are always refused: a future slip does not exist yet, so never quote one.",
     tags: ['read'],
     parameters: {
       type: 'object',
@@ -40,7 +40,7 @@ export const OMIKUJI_TOOL_DECLS: readonly ToolSpec[] = [
       properties: {
         date: {
           type: 'string',
-          description: 'Calendar date in YYYY-MM-DD. Omit for today in the deployment timezone.',
+          description: 'Calendar date in YYYY-MM-DD, today or earlier. Omit for today. A date after today is refused.',
         },
         peek: {
           type: 'boolean',
@@ -54,7 +54,7 @@ export const OMIKUJI_TOOL_DECLS: readonly ToolSpec[] = [
   {
     name: 'omikuji_record',
     description:
-      'Store the slip you wrote for a date: the verse and, optionally, your own reading of it. The first record for a date is kept and every later draw returns it unchanged, so record once and do not rewrite it. Returns what was stored. Built-in wording mode keeps its own verses, so the call only answers with a note there.',
+      'Store the slip you wrote for a date: the verse and, optionally, your own reading of it. The first record for a date is kept and every later draw returns it unchanged, so record once and do not rewrite it. Returns what was stored. A date after today is refused — there is no slip for a day that has not happened. Built-in wording mode keeps its own verses, so the call only answers with a note there.',
     tags: ['write'],
     parameters: {
       type: 'object',
@@ -413,9 +413,27 @@ export class OmikujiWorld implements World {
     return { font: this.#opts.cfg.fontFamily ?? 'kai' };
   }
 
+  /**
+   * 把日期参数落成一个可用的日期，**并且禁止未来**。
+   *
+   * 未来的日子还没有到，那一天的真随机盐也还不该存在；要是允许读，桌宠就会用
+   * 「日期 + 固定盐」算出一张明天的签念给用户——等于提前剧透，而且那天真抽签时
+   * 还会换成另一张。所以这里是唯一入口，统一挡掉：任何晚于今天的日期直接报错。
+   *
+   * 今天是允许的（抽签就是给今天摇盐），过去的日子也允许（读或补录）。
+   */
   #resolveDate(date?: string): string {
     const target = date ?? this.#today();
     if (!isDateIso(target)) throw new RangeError(`date must be YYYY-MM-DD, got ${JSON.stringify(target)}`);
+    const today = this.#today();
+    if (target > today) {
+      // 拒绝要说人话：模型会照着这条去回应用户，别让它把技术报错念出去
+      throw new RangeError(
+        `${target} 还没到（今天是 ${today}），抽签也抽不到未来——我没办法穿越到明天去抽签。`
+        + '可以俏皮地回一句，比如「我没有办法穿越到明天去抽签呢，可以期待一下，说不定是上上签」，'
+        + '但绝不能替那一天编造签文、档位或分数。',
+      );
+    }
     return target;
   }
 

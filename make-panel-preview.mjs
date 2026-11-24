@@ -25,6 +25,10 @@ const pkg = join(root, 'cortico-world-omikuji');
 const css = readFileSync(join(pkg, 'dist/webui.css'), 'utf8');
 const js = readFileSync(join(pkg, 'dist/webui.js'), 'utf8');
 
+// 预览顶上的字号试档（px）。面板尺寸全是 em，换基准就整体缩放。
+const SIZE_STEPS = [20, 22, 24, 26, 28, 30];
+const basePx = Number(/\.om-shell\s*\{[\s\S]*?font-size:\s*(\d+)px/.exec(css)?.[1] ?? 24);
+
 // 用真逻辑造一份快照：今天的正片 + 七天横排。
 const dataDir = join(root, '.tmp-preview');
 rmSync(dataDir, { recursive: true, force: true });
@@ -99,6 +103,8 @@ const html = `<!doctype html>
   }
 ${css}
 </style>
+<!-- 字号试档：面板所有尺寸都是 em，改这一个值就整体缩放，方便现场挑 -->
+<style id="size-override">.om-shell { font-size: ${basePx}px !important; }</style>
 </head>
 <body>
 <div class="bar">
@@ -106,6 +112,11 @@ ${css}
   <button data-mode="builtin" class="on">内置文案</button>
   <button data-mode="pet">桌宠自己写</button>
   <button id="reset">重置成封着的状态</button>
+</div>
+<div class="bar">
+  <span>字号试档（基准 px）：</span>
+  ${SIZE_STEPS.map((px) => `<button data-px="${px}"${px === basePx ? ' class="on"' : ''}>${px}</button>`).join("\n  ")}
+  <span id="size-now">当前 ${basePx}px</span>
 </div>
 <div class="panel" id="root"></div>
 <script type="module">
@@ -157,6 +168,15 @@ document.querySelectorAll('[data-mode]').forEach((button) => {
     memoStore.clear();
     drawn.clear();
     mount();
+  });
+});
+// 字号试档：只换一条覆盖规则，面板不用重挂
+document.querySelectorAll('[data-px]').forEach((button) => {
+  button.addEventListener('click', () => {
+    const px = button.dataset.px;
+    document.getElementById('size-override').textContent = '.om-shell { font-size: ' + px + 'px !important; }';
+    document.querySelectorAll('[data-px]').forEach((other) => other.classList.toggle('on', other === button));
+    document.getElementById('size-now').textContent = '当前 ' + px + 'px';
   });
 });
 document.getElementById('reset').addEventListener('click', () => {

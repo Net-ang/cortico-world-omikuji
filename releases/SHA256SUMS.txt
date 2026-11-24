@@ -9,3 +9,10 @@ fda09381bc2326395914693406b50c0f6fba4e0d15786ce341841a80166f46f4  cortico-world-
 6e3b3d840720dd49d599e6b41c38b8e9222c0c2c95c22c9811c6d5071da7bda7  cortico-world-omikuji-0.4.3.tgz
 482a361ecbcb734039ffe332fb806d2a6b1881860531bf07a33e46ee0bae4628  cortico-world-omikuji-0.4.4.tgz
 8ef85e117b3a65060635ccbdd16c9580529f479dada73c58d6c72028abb786dc  cortico-world-omikuji-0.4.5.tgz
+bb516d0f2ccfb7aed95f40688535df89cbdeae71e787280c55e677bd3fc26f10  cortico-world-omikuji-0.4.6.tgz
+7697f2e383aa4f4aaf91e7ba8b88f65353ce78fb18f55b20c9b38f16220b68ca  cortico-world-omikuji-0.4.7.tgz
+bdffe6c4e3feac1fd0e873fde01ae99b4961f1a8020e8ec3ecb34914f2034565  cortico-world-omikuji-0.4.8.tgz
+2beb98d3e0251b93add6b83d29afe51e4d35e7f733f5117b9c51cdfbedc4788f  cortico-world-omikuji-0.4.9.tgz
+9b108b9e639b0e580694b2e89b3d837b7b94c6a2862face3da9f34902e6505a7  cortico-world-omikuji-0.4.10.tgz
+17df7fd426cfea71891867dd6607a819f67d3e1dc6815f01426339a45eccd95f  cortico-world-omikuji-0.4.11.tgz
+390ace8ee2c25c1f702ddb61493e5cfb455bf76ebe8795161dab025c36f25242  cortico-world-omikuji-0.4.12.tgz

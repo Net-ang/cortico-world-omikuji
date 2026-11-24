@@ -1,21 +1,19 @@
 /*
  * 「今日一签」面板样式。
  *
+ * 字号口径（0.4.8）：基准仍是 14px，所有文字逐条 +3px（例如正文 13→16px、签文 15→18px）；
+ * 间距/内边距/头像尺寸一律没动，所以面板整体尺寸不变、只是字更清楚。
+ * 想微调就改下面各自的 font-size，基准别动——基准一动，所有按 em 写的间距会一起变。
+ *
  * 配色是**自带**的，不跟宿主主题走：这一页铺着动态壁纸，需要稳定的深底浅字才读得清。
  * 早先版本用 `var(--ink, inherit)` / `var(--paper-2)` 这类宿主变量，宿主恰好给了浅色
  * 或没给变量时，就成了「灰底 + 字发糊」。现在整套色板写在 .om-shell 上。
  *
- * 排版基线见 .om-app：28px 基准 + em 递进，字号/字重/斜体都由 CSS 定死，只开放字体族。
+ * 排版基线见 .om-app：14px 基准 + em 递进，字号/字重/斜体都由 CSS 定死，只开放字体族。
  */
 
 /* 页面外壳：自绘背景在最底层，动态素材盖上去，内容浮在最上面。 */
 .om-shell {
-  /*
-   * 基准字号。整页排版都用 em 递进，改这一个值就是整体缩放。
-   * 0.4.5 起是 28px（原 14px 的两倍）：作者要求字号大一倍。
-   */
-  font-size: 28px;
-
   /* 色板：暖墨底 + 米白字 + 一点金 */
   --om-ink: #f3ece0;
   --om-ink-soft: #dcd1c0;
@@ -95,9 +93,9 @@
   z-index: 1;
   display: flex;
   flex-direction: column;
-  gap: 1em;
-  padding: 0.43em 0.29em 1em;
-  font-size: 1em;
+  gap: 14px;
+  padding: 6px 4px 14px;
+  font-size: 14px;
   font-family: var(--om-font, "KaiTi", "STKaiti", serif);
   font-weight: 400;
   line-height: 1.75;
@@ -117,19 +115,19 @@
 
 /*
  * 排版规格（写死，不给设置项）：
- * 正文 28px/1.75，标题 34px/600，签文 30px/500，标签 25px/400，注脚 22px/400。
+ * 正文 14px/1.75，标题 17px/600，签文 15px/500，标签 12.5px/400，注脚 11px/400。
  * 全站不用斜体——中文斜体是浏览器合成的，笔画会歪。
  */
 
 .om-head {
   display: flex;
   flex-direction: column;
-  gap: 0.29em;
+  gap: 4px;
 }
 
 .om-title {
   margin: 0;
-  font-size: 1.214em;
+  font-size: 1.428em;
   font-weight: 600;
   color: var(--om-ink);
   letter-spacing: 0.04em;
@@ -139,13 +137,13 @@
 .om-head::after {
   content: '';
   height: 1px;
-  margin-top: 0.14em;
+  margin-top: 2px;
   background: linear-gradient(90deg, var(--om-gold-dim), transparent 72%);
 }
 
 .om-meta {
   margin: 0;
-  font-size: 0.857em;
+  font-size: 1.071em;
   font-variant-numeric: tabular-nums;
   color: var(--om-ink-dim);
 }
@@ -153,9 +151,9 @@
 /* 面板顶部的引言：压低对比，读起来像句子而不是说明 */
 .om-intro {
   margin: 0;
-  max-width: 46em;
-  font-size: 0.929em;
-  line-height: 1.85;
+  max-width: none;
+  font-size: 1.357em;
+  line-height: 1.6;
   color: var(--om-ink-soft);
   text-wrap: pretty;
 }
@@ -191,8 +189,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.86em;
-  padding: 2.43em 1.14em;
+  gap: 12px;
+  padding: 34px 16px;
   border: 1px dashed var(--om-hair);
   border-radius: var(--radius-lg, 14px);
   background: var(--om-card);
@@ -201,13 +199,13 @@
 
 .om-face-lead {
   margin: 0;
-  font-size: 0.929em;
+  font-size: 1.143em;
   color: var(--om-ink-soft);
 }
 
 .om-err {
   margin: 0;
-  font-size: 0.929em;
+  font-size: 1.143em;
   color: #ff9d8a;
 }
 
@@ -215,8 +213,8 @@
 
 .om-btn {
   font: inherit;
-  font-size: 0.929em;
-  padding: 0.5em 1em;
+  font-size: 1.143em;
+  padding: 7px 14px;
   border: 1px solid var(--om-hair);
   border-radius: var(--radius-md, 9px);
   background: rgba(255, 255, 255, 0.06);
@@ -254,8 +252,8 @@
 .om-card {
   display: flex;
   flex-direction: column;
-  gap: 0.86em;
-  padding: 1em 1.14em 0.86em;
+  gap: 12px;
+  padding: 14px 16px 12px;
   border: 1px solid var(--om-hair-soft);
   border-radius: var(--radius-lg, 14px);
   background: var(--om-card);
@@ -269,33 +267,33 @@
 .om-card-top {
   display: flex;
   align-items: baseline;
-  gap: 0.71em;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
 .om-lot {
-  font-size: 0.857em;
+  font-size: 1.071em;
   font-variant-numeric: tabular-nums;
   color: var(--om-ink-dim);
 }
 
 .om-tier {
-  font-size: 1.143em;
+  font-size: 1.5em;
   font-weight: 600;
   color: var(--om-gold);
   letter-spacing: 0.06em;
 }
 
 .om-score {
-  font-size: 0.857em;
+  font-size: 1.214em;
   font-variant-numeric: tabular-nums;
   color: var(--om-ink-soft);
 }
 
 .om-tag {
   margin-left: auto;
-  font-size: 0.786em;
-  padding: 0.14em 0.5em;
+  font-size: 1em;
+  padding: 2px 7px;
   border-radius: 999px;
   background: rgba(224, 189, 124, 0.16);
   color: var(--om-gold);
@@ -304,41 +302,48 @@
 .om-card-body {
   display: flex;
   flex-direction: column;
-  gap: 0.57em;
+  gap: 8px;
 }
 
 .om-poem {
   margin: 0;
-  font-size: 1.071em;
+  font-size: 1.5em;
   font-weight: 500;
-  line-height: 1.7;
+  line-height: 1.45;
   color: var(--om-ink);
   letter-spacing: 0.03em;
 }
 
-.om-gloss,
-.om-written {
+.om-gloss {
   margin: 0;
-  font-size: 0.929em;
-  line-height: 1.75;
+  font-size: 1.4em;
+  line-height: 1.5;
   color: var(--om-ink-soft);
 }
 
 .om-written {
-  font-size: 1.071em;
+  margin: 0;
+  font-size: 1.4em;
+  line-height: 1.5;
+  color: var(--om-ink-soft);
+}
+
+.om-written {
+  font-size: 1.571em;
   font-weight: 500;
+  line-height: 1.45;
   color: var(--om-ink);
 }
 
 .om-written-by {
   margin: 0;
-  font-size: 0.786em;
+  font-size: 1em;
   color: var(--om-ink-dim);
 }
 
 .om-pending {
   margin: 0;
-  font-size: 0.929em;
+  font-size: 1.143em;
   line-height: 1.7;
   color: var(--om-ink-soft);
 }
@@ -346,8 +351,8 @@
 /* 节气与月相那一行：时令感，压到最轻 */
 .om-almanac {
   margin: 0;
-  padding-bottom: 0.14em;
-  font-size: 0.821em;
+  padding-bottom: 2px;
+  font-size: 1.035em;
   line-height: 1.7;
   color: var(--om-ink-dim);
   border-bottom: 1px solid var(--om-hair-soft);
@@ -358,8 +363,8 @@
   margin: 0;
   padding-left: 4.5em;
   text-indent: -4.5em;
-  font-size: 0.929em;
-  line-height: 1.85;
+  font-size: 1.5em;
+  line-height: 1.55;
   color: var(--om-ink-soft);
   text-wrap: pretty;
 }
@@ -368,14 +373,14 @@
 .om-stars {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.14em 1.29em;
-  padding: 0.14em 0;
+  gap: 2px 18px;
+  padding: 2px 0;
 }
 
 .om-star {
   display: flex;
-  gap: 0.57em;
-  font-size: 0.893em;
+  gap: 8px;
+  font-size: 1.107em;
 }
 
 .om-star-k {
@@ -392,16 +397,16 @@
 /* 幸运四项：一行写完，不占四行 */
 .om-lucky {
   margin: 0;
-  padding-top: 0.14em;
-  font-size: 0.893em;
+  padding-top: 2px;
+  font-size: 1.107em;
   line-height: 1.7;
   color: var(--om-gold);
 }
 
 .om-fact {
   display: flex;
-  gap: 0.71em;
-  font-size: 0.929em;
+  gap: 10px;
+  font-size: 1.143em;
   line-height: 1.6;
 }
 
@@ -416,15 +421,15 @@
 
 .om-actions {
   display: flex;
-  gap: 0.57em;
-  padding-top: 0.14em;
+  gap: 8px;
+  padding-top: 2px;
 }
 
 /* 翻开后的收束句：比签文轻、比免责重，居中收尾 */
 .om-blessing {
   margin: 0;
-  padding-top: 0.43em;
-  font-size: 0.893em;
+  padding-top: 6px;
+  font-size: 1.107em;
   line-height: 1.8;
   text-align: center;
   color: var(--om-ink-soft);
@@ -433,8 +438,8 @@
 
 .om-disclaimer {
   margin: 0;
-  padding-top: 0.14em;
-  font-size: 0.786em;
+  padding-top: 2px;
+  font-size: 1em;
   color: var(--om-ink-dim);
   opacity: 0.85;
 }
@@ -444,19 +449,19 @@
 .om-strip {
   display: flex;
   flex-direction: column;
-  gap: 0.43em;
+  gap: 6px;
 }
 
 .om-strip-title {
   margin: 0;
-  font-size: 0.786em;
+  font-size: 1em;
   letter-spacing: 0.06em;
   color: var(--om-ink-dim);
 }
 
 .om-chips {
   display: flex;
-  gap: 0.43em;
+  gap: 6px;
   flex-wrap: wrap;
 }
 
@@ -464,9 +469,9 @@
   display: inline-flex;
   flex-direction: column;
   gap: 1px;
-  padding: 0.43em 0.64em;
+  padding: 6px 9px;
   font: inherit;
-  font-size: 0.786em;
+  font-size: 1em;
   border: 1px solid var(--om-hair-soft);
   border-radius: var(--radius-md, 9px);
   background: rgba(255, 255, 255, 0.05);
@@ -492,12 +497,12 @@
 }
 
 .om-chip-tier {
-  font-size: 0.857em;
+  font-size: 1.071em;
   color: var(--om-ink);
 }
 
 .om-chip-mark {
-  font-size: 0.714em;
+  font-size: 0.928em;
   color: var(--om-gold);
 }
 
@@ -536,7 +541,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1.71em;
+  padding: 24px;
   background: rgba(6, 7, 10, 0.66);
   backdrop-filter: blur(6px) saturate(1.05);
   animation: om-fade-in 160ms ease-out both;
@@ -552,9 +557,9 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1.14em;
+  gap: 16px;
   width: min(28em, 100%);
-  padding: 1.71em 1.57em 1.29em;
+  padding: 24px 22px 18px;
   border: 1px solid var(--om-hair);
   border-radius: var(--radius-lg, 14px);
   background: var(--om-card-solid);
@@ -571,7 +576,7 @@
 .om-more-text {
   margin: 0;
   font-family: var(--om-font, "KaiTi", "STKaiti", serif);
-  font-size: 1.143em;
+  font-size: 1.357em;
   font-weight: 500;
   line-height: 1.95;
   letter-spacing: 0.04em;
@@ -589,7 +594,7 @@
 .om-reveal-video {
   display: block;
   width: 100%;
-  max-width: 25.7em;
+  max-width: 360px;
   margin: 0 auto;
   border-radius: var(--radius-lg, 14px);
   background: rgba(255, 255, 255, 0.05);
@@ -618,15 +623,15 @@
 .om-foot {
   display: flex;
   align-items: center;
-  gap: 0.71em;
-  margin-top: 0.43em;
-  padding-top: 0.86em;
+  gap: 10px;
+  margin-top: 6px;
+  padding-top: 12px;
   border-top: 1px solid var(--om-hair-soft);
 }
 
 .om-avatar {
-  width: 2.57em;
-  height: 2.57em;
+  width: 36px;
+  height: 36px;
   flex: 0 0 auto;
   border-radius: 50%;
   object-fit: cover;
@@ -649,14 +654,14 @@
 
 .om-foot-name {
   margin: 0;
-  font-size: 0.857em;
+  font-size: 1.071em;
   font-weight: 600;
   color: var(--om-ink-soft);
 }
 
 .om-foot-note {
   margin: 0;
-  font-size: 0.821em;
+  font-size: 1.035em;
   line-height: 1.6;
   color: var(--om-ink-dim);
 }
@@ -674,4 +679,15 @@
     --om-card: rgba(16, 18, 22, 0.94);
     --om-ink-dim: #cdc2b1;
   }
+}
+
+/* 页脚右下角的构建号：只给排查用，压到几乎看不见 */
+.om-version {
+  margin-left: auto;
+  font-size: 1.071em;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent, #4a86e8);
+  opacity: 0.9;
+  letter-spacing: 0.02em;
+  user-select: none;
 }

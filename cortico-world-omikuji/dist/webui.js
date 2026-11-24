@@ -8,6 +8,9 @@
  * 不引框架，也不在这里写随机：签由服务端按 (日期, 盐) 算，面板只负责画。
  */
 
+/** 面板构建号：页脚里淡淡地写出来，装错/缓存旧版时一眼能看出来。 */
+const BUILD = '0.4.12';
+
 const TEXT = {
   zh: {
     title: '今日一签',
@@ -147,7 +150,9 @@ export default {
           document.createTextNode(T.authorWishZh),
         );
         footText.append(footName, footNote);
-        foot.append(avatar, footText);
+        // 很淡的构建号：排查「我改了怎么没变」用，正常看不到存在感
+        const buildTag = el('span', 'om-version', 'v' + BUILD);
+        foot.append(avatar, footText, buildTag);
         app.append(head, intro, stage, strip, foot);
 
         /*
@@ -462,7 +467,8 @@ export default {
         const render = () => {
           const s = snapshot;
           if (!s) return faceDown();
-          meta.textContent = s.date === s.today ? s.today : `${s.date} · ${T.lookBack}`;
+          // 构建号跟着日期一起显示：确认「现在跑的是哪一版」用
+          meta.textContent = (s.date === s.today ? s.today : `${s.date} · ${T.lookBack}`) + ' · v' + BUILD;
           applyText(s.text);
           /*
            * 服务端说这一天还没定下来（`sign` 为 null，只有「今天还没抽」这一种）：

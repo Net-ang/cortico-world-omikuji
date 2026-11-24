@@ -104,8 +104,8 @@ test('只给签文不给解签也能记（老调用方式）', async () => {
 test('同一天只认第一份，重写不覆盖', async () => {
   const world = makeWorld('pet', freshDir('pet-keep'));
   const [, record] = world.tools();
-  await record!.handler({ text: '第一份。', date: '2026-12-01' }, {} as never);
-  const second = (await record!.handler({ text: '第二份。', date: '2026-12-01' }, {} as never)) as string;
+  await record!.handler({ text: '第一份。', date: '2026-02-10' }, {} as never);
+  const second = (await record!.handler({ text: '第二份。', date: '2026-02-10' }, {} as never)) as string;
   assert.match(second, /保留的是先写下的那份/);
   assert.ok(second.includes('第一份。'));
   assert.ok(!second.includes('第二份。'));
@@ -115,15 +115,15 @@ test('别的日期、别的月份各自独立', async () => {
   const dir = freshDir('pet-isolation');
   const world = makeWorld('pet', dir);
   const [draw, record] = world.tools();
-  await record!.handler({ text: '十一月那天写的。', date: '2026-11-30' }, {} as never);
-  await record!.handler({ text: '十二月那天写的。', date: '2026-12-01' }, {} as never);
+  await record!.handler({ text: '十一月那天写的。', date: '2026-01-15' }, {} as never);
+  await record!.handler({ text: '十二月那天写的。', date: '2026-02-10' }, {} as never);
 
-  assert.ok(((await draw!.handler({ date: '2026-11-30' }, {} as never)) as string).startsWith('十一月那天写的。'));
-  assert.ok(((await draw!.handler({ date: '2026-12-01' }, {} as never)) as string).startsWith('十二月那天写的。'));
-  assert.match((await draw!.handler({ date: '2026-11-29' }, {} as never)) as string, /签文和解签都由你来写/);
-  assert.ok(existsSync(wordingFilePath(dir, '2026-11-30')), 'November file must exist');
-  assert.ok(existsSync(wordingFilePath(dir, '2026-12-01')), 'December file must exist');
-  assert.notEqual(wordingFilePath(dir, '2026-11-30'), wordingFilePath(dir, '2026-12-01'));
+  assert.ok(((await draw!.handler({ date: '2026-01-15' }, {} as never)) as string).startsWith('十一月那天写的。'));
+  assert.ok(((await draw!.handler({ date: '2026-02-10' }, {} as never)) as string).startsWith('十二月那天写的。'));
+  assert.match((await draw!.handler({ date: '2026-01-14' }, {} as never)) as string, /签文和解签都由你来写/);
+  assert.ok(existsSync(wordingFilePath(dir, '2026-01-15')), 'November file must exist');
+  assert.ok(existsSync(wordingFilePath(dir, '2026-02-10')), 'December file must exist');
+  assert.notEqual(wordingFilePath(dir, '2026-01-15'), wordingFilePath(dir, '2026-02-10'));
 });
 
 test('正文校验：空串、非字符串、超长都拒绝', async () => {

@@ -365,6 +365,10 @@ export async function panelInvoke(
   if (wanted !== undefined && typeof wanted !== 'string') throw new TypeError('日期必须是字符串');
   if (wanted !== undefined && !isDateIso(wanted)) throw new RangeError(`not a calendar date: ${wanted}`);
   const date = wanted ?? deps.today;
+  // 未来的日子还没有签：面板同样不给看、也不给抽
+  if (date > deps.today) {
+    throw new RangeError(`${date} 还没到，不能看也不能抽（今天是 ${deps.today}）。`);
+  }
 
   if (method === 'snapshot') return panelSnapshot(deps, date);
   if (method === 'draw') {
