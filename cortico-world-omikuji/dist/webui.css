@@ -5,11 +5,17 @@
  * 早先版本用 `var(--ink, inherit)` / `var(--paper-2)` 这类宿主变量，宿主恰好给了浅色
  * 或没给变量时，就成了「灰底 + 字发糊」。现在整套色板写在 .om-shell 上。
  *
- * 排版基线见 .om-app：14px 基准 + em 递进，字号/字重/斜体都由 CSS 定死，只开放字体族。
+ * 排版基线见 .om-app：28px 基准 + em 递进，字号/字重/斜体都由 CSS 定死，只开放字体族。
  */
 
 /* 页面外壳：自绘背景在最底层，动态素材盖上去，内容浮在最上面。 */
 .om-shell {
+  /*
+   * 基准字号。整页排版都用 em 递进，改这一个值就是整体缩放。
+   * 0.4.5 起是 28px（原 14px 的两倍）：作者要求字号大一倍。
+   */
+  font-size: 28px;
+
   /* 色板：暖墨底 + 米白字 + 一点金 */
   --om-ink: #f3ece0;
   --om-ink-soft: #dcd1c0;
@@ -89,9 +95,9 @@
   z-index: 1;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 6px 4px 14px;
-  font-size: 14px;
+  gap: 1em;
+  padding: 0.43em 0.29em 1em;
+  font-size: 1em;
   font-family: var(--om-font, "KaiTi", "STKaiti", serif);
   font-weight: 400;
   line-height: 1.75;
@@ -111,14 +117,14 @@
 
 /*
  * 排版规格（写死，不给设置项）：
- * 正文 14px/1.75，标题 17px/600，签文 15px/500，标签 12.5px/400，注脚 11px/400。
+ * 正文 28px/1.75，标题 34px/600，签文 30px/500，标签 25px/400，注脚 22px/400。
  * 全站不用斜体——中文斜体是浏览器合成的，笔画会歪。
  */
 
 .om-head {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 0.29em;
 }
 
 .om-title {
@@ -133,7 +139,7 @@
 .om-head::after {
   content: '';
   height: 1px;
-  margin-top: 2px;
+  margin-top: 0.14em;
   background: linear-gradient(90deg, var(--om-gold-dim), transparent 72%);
 }
 
@@ -185,8 +191,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
-  padding: 34px 16px;
+  gap: 0.86em;
+  padding: 2.43em 1.14em;
   border: 1px dashed var(--om-hair);
   border-radius: var(--radius-lg, 14px);
   background: var(--om-card);
@@ -210,7 +216,7 @@
 .om-btn {
   font: inherit;
   font-size: 0.929em;
-  padding: 7px 14px;
+  padding: 0.5em 1em;
   border: 1px solid var(--om-hair);
   border-radius: var(--radius-md, 9px);
   background: rgba(255, 255, 255, 0.06);
@@ -248,8 +254,8 @@
 .om-card {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 14px 16px 12px;
+  gap: 0.86em;
+  padding: 1em 1.14em 0.86em;
   border: 1px solid var(--om-hair-soft);
   border-radius: var(--radius-lg, 14px);
   background: var(--om-card);
@@ -263,7 +269,7 @@
 .om-card-top {
   display: flex;
   align-items: baseline;
-  gap: 10px;
+  gap: 0.71em;
   flex-wrap: wrap;
 }
 
@@ -289,7 +295,7 @@
 .om-tag {
   margin-left: auto;
   font-size: 0.786em;
-  padding: 2px 7px;
+  padding: 0.14em 0.5em;
   border-radius: 999px;
   background: rgba(224, 189, 124, 0.16);
   color: var(--om-gold);
@@ -298,7 +304,7 @@
 .om-card-body {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 0.57em;
 }
 
 .om-poem {
@@ -340,7 +346,7 @@
 /* 节气与月相那一行：时令感，压到最轻 */
 .om-almanac {
   margin: 0;
-  padding-bottom: 2px;
+  padding-bottom: 0.14em;
   font-size: 0.821em;
   line-height: 1.7;
   color: var(--om-ink-dim);
@@ -362,13 +368,13 @@
 .om-stars {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 2px 18px;
-  padding: 2px 0;
+  gap: 0.14em 1.29em;
+  padding: 0.14em 0;
 }
 
 .om-star {
   display: flex;
-  gap: 8px;
+  gap: 0.57em;
   font-size: 0.893em;
 }
 
@@ -386,7 +392,7 @@
 /* 幸运四项：一行写完，不占四行 */
 .om-lucky {
   margin: 0;
-  padding-top: 2px;
+  padding-top: 0.14em;
   font-size: 0.893em;
   line-height: 1.7;
   color: var(--om-gold);
@@ -394,7 +400,7 @@
 
 .om-fact {
   display: flex;
-  gap: 10px;
+  gap: 0.71em;
   font-size: 0.929em;
   line-height: 1.6;
 }
@@ -410,14 +416,14 @@
 
 .om-actions {
   display: flex;
-  gap: 8px;
-  padding-top: 2px;
+  gap: 0.57em;
+  padding-top: 0.14em;
 }
 
 /* 翻开后的收束句：比签文轻、比免责重，居中收尾 */
 .om-blessing {
   margin: 0;
-  padding-top: 6px;
+  padding-top: 0.43em;
   font-size: 0.893em;
   line-height: 1.8;
   text-align: center;
@@ -427,7 +433,7 @@
 
 .om-disclaimer {
   margin: 0;
-  padding-top: 2px;
+  padding-top: 0.14em;
   font-size: 0.786em;
   color: var(--om-ink-dim);
   opacity: 0.85;
@@ -438,7 +444,7 @@
 .om-strip {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 0.43em;
 }
 
 .om-strip-title {
@@ -450,7 +456,7 @@
 
 .om-chips {
   display: flex;
-  gap: 6px;
+  gap: 0.43em;
   flex-wrap: wrap;
 }
 
@@ -458,7 +464,7 @@
   display: inline-flex;
   flex-direction: column;
   gap: 1px;
-  padding: 6px 9px;
+  padding: 0.43em 0.64em;
   font: inherit;
   font-size: 0.786em;
   border: 1px solid var(--om-hair-soft);
@@ -530,7 +536,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: 1.71em;
   background: rgba(6, 7, 10, 0.66);
   backdrop-filter: blur(6px) saturate(1.05);
   animation: om-fade-in 160ms ease-out both;
@@ -546,9 +552,9 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
+  gap: 1.14em;
   width: min(28em, 100%);
-  padding: 24px 22px 18px;
+  padding: 1.71em 1.57em 1.29em;
   border: 1px solid var(--om-hair);
   border-radius: var(--radius-lg, 14px);
   background: var(--om-card-solid);
@@ -583,7 +589,7 @@
 .om-reveal-video {
   display: block;
   width: 100%;
-  max-width: 360px;
+  max-width: 25.7em;
   margin: 0 auto;
   border-radius: var(--radius-lg, 14px);
   background: rgba(255, 255, 255, 0.05);
@@ -612,15 +618,15 @@
 .om-foot {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-top: 6px;
-  padding-top: 12px;
+  gap: 0.71em;
+  margin-top: 0.43em;
+  padding-top: 0.86em;
   border-top: 1px solid var(--om-hair-soft);
 }
 
 .om-avatar {
-  width: 36px;
-  height: 36px;
+  width: 2.57em;
+  height: 2.57em;
   flex: 0 0 auto;
   border-radius: 50%;
   object-fit: cover;

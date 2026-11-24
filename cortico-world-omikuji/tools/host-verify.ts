@@ -81,7 +81,7 @@ for (const name of assets) {
 }
 
 // 3. 修素材路径的那个文件
-if (existsSync(join(installedDir, 'src', 'assets.ts'))) ok('src/assets.ts 在（走的是 0.4.2 的路径解析）');
+if (existsSync(join(installedDir, 'src', 'assets.ts'))) ok('src/assets.ts 在（0.4.2 起就这样定位包目录）');
 else bad('src/assets.ts 不在——这版还没修素材路径，装的是 0.4.1 或更早');
 
 // 4. 日志里还有没有那条报错（只看**本次进程启动之后**的，旧进程留下的不算）

@@ -18,6 +18,7 @@ import { loadSignContent } from './cortico-world-omikuji/src/content.ts';
 import { drawSign } from './cortico-world-omikuji/src/daily.ts';
 import { panelSnapshot, PANEL_ID } from './cortico-world-omikuji/src/panel.ts';
 import { saveWording } from './cortico-world-omikuji/src/wording.ts';
+import { materializeDaySalt } from './cortico-world-omikuji/src/daysalt.ts';
 
 const root = fileURLToPath(new URL('.', import.meta.url));
 const pkg = join(root, 'cortico-world-omikuji');
@@ -31,7 +32,9 @@ mkdirSync(dataDir, { recursive: true });
 const content = loadSignContent();
 const SALT = 'preview0salt0000';
 const today = new Date().toISOString().slice(0, 10);
-const signFor = (date) => drawSign(date, SALT, content);
+// 预览要看「翻开后的牌面」，所以先给今天落一份当日盐（否则快照里 sign 是 null）
+const { salt: todaySalt } = materializeDaySalt(dataDir, today, `${today}T09:00:00+08:00`);
+const signFor = (date) => drawSign(date, date === today ? todaySalt : SALT, content);
 saveWording(dataDir, today, '檐下站一会儿，等雨小些再走。', `${today}T09:00:00+08:00`);
 
 const builtin = panelSnapshot({ mode: 'builtin', dataDir, packageDir: pkg, today, signFor, drawFor: signFor });

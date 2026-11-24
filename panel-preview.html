@@ -27,11 +27,17 @@
  * 早先版本用 `var(--ink, inherit)` / `var(--paper-2)` 这类宿主变量，宿主恰好给了浅色
  * 或没给变量时，就成了「灰底 + 字发糊」。现在整套色板写在 .om-shell 上。
  *
- * 排版基线见 .om-app：14px 基准 + em 递进，字号/字重/斜体都由 CSS 定死，只开放字体族。
+ * 排版基线见 .om-app：28px 基准 + em 递进，字号/字重/斜体都由 CSS 定死，只开放字体族。
  */
 
 /* 页面外壳：自绘背景在最底层，动态素材盖上去，内容浮在最上面。 */
 .om-shell {
+  /*
+   * 基准字号。整页排版都用 em 递进，改这一个值就是整体缩放。
+   * 0.4.5 起是 28px（原 14px 的两倍）：作者要求字号大一倍。
+   */
+  font-size: 28px;
+
   /* 色板：暖墨底 + 米白字 + 一点金 */
   --om-ink: #f3ece0;
   --om-ink-soft: #dcd1c0;
@@ -111,9 +117,9 @@
   z-index: 1;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 6px 4px 14px;
-  font-size: 14px;
+  gap: 1em;
+  padding: 0.43em 0.29em 1em;
+  font-size: 1em;
   font-family: var(--om-font, "KaiTi", "STKaiti", serif);
   font-weight: 400;
   line-height: 1.75;
@@ -133,14 +139,14 @@
 
 /*
  * 排版规格（写死，不给设置项）：
- * 正文 14px/1.75，标题 17px/600，签文 15px/500，标签 12.5px/400，注脚 11px/400。
+ * 正文 28px/1.75，标题 34px/600，签文 30px/500，标签 25px/400，注脚 22px/400。
  * 全站不用斜体——中文斜体是浏览器合成的，笔画会歪。
  */
 
 .om-head {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 0.29em;
 }
 
 .om-title {
@@ -155,7 +161,7 @@
 .om-head::after {
   content: '';
   height: 1px;
-  margin-top: 2px;
+  margin-top: 0.14em;
   background: linear-gradient(90deg, var(--om-gold-dim), transparent 72%);
 }
 
@@ -207,8 +213,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
-  padding: 34px 16px;
+  gap: 0.86em;
+  padding: 2.43em 1.14em;
   border: 1px dashed var(--om-hair);
   border-radius: var(--radius-lg, 14px);
   background: var(--om-card);
@@ -232,7 +238,7 @@
 .om-btn {
   font: inherit;
   font-size: 0.929em;
-  padding: 7px 14px;
+  padding: 0.5em 1em;
   border: 1px solid var(--om-hair);
   border-radius: var(--radius-md, 9px);
   background: rgba(255, 255, 255, 0.06);
@@ -270,8 +276,8 @@
 .om-card {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 14px 16px 12px;
+  gap: 0.86em;
+  padding: 1em 1.14em 0.86em;
   border: 1px solid var(--om-hair-soft);
   border-radius: var(--radius-lg, 14px);
   background: var(--om-card);
@@ -285,7 +291,7 @@
 .om-card-top {
   display: flex;
   align-items: baseline;
-  gap: 10px;
+  gap: 0.71em;
   flex-wrap: wrap;
 }
 
@@ -311,7 +317,7 @@
 .om-tag {
   margin-left: auto;
   font-size: 0.786em;
-  padding: 2px 7px;
+  padding: 0.14em 0.5em;
   border-radius: 999px;
   background: rgba(224, 189, 124, 0.16);
   color: var(--om-gold);
@@ -320,7 +326,7 @@
 .om-card-body {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 0.57em;
 }
 
 .om-poem {
@@ -362,7 +368,7 @@
 /* 节气与月相那一行：时令感，压到最轻 */
 .om-almanac {
   margin: 0;
-  padding-bottom: 2px;
+  padding-bottom: 0.14em;
   font-size: 0.821em;
   line-height: 1.7;
   color: var(--om-ink-dim);
@@ -384,13 +390,13 @@
 .om-stars {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 2px 18px;
-  padding: 2px 0;
+  gap: 0.14em 1.29em;
+  padding: 0.14em 0;
 }
 
 .om-star {
   display: flex;
-  gap: 8px;
+  gap: 0.57em;
   font-size: 0.893em;
 }
 
@@ -408,7 +414,7 @@
 /* 幸运四项：一行写完，不占四行 */
 .om-lucky {
   margin: 0;
-  padding-top: 2px;
+  padding-top: 0.14em;
   font-size: 0.893em;
   line-height: 1.7;
   color: var(--om-gold);
@@ -416,7 +422,7 @@
 
 .om-fact {
   display: flex;
-  gap: 10px;
+  gap: 0.71em;
   font-size: 0.929em;
   line-height: 1.6;
 }
@@ -432,14 +438,14 @@
 
 .om-actions {
   display: flex;
-  gap: 8px;
-  padding-top: 2px;
+  gap: 0.57em;
+  padding-top: 0.14em;
 }
 
 /* 翻开后的收束句：比签文轻、比免责重，居中收尾 */
 .om-blessing {
   margin: 0;
-  padding-top: 6px;
+  padding-top: 0.43em;
   font-size: 0.893em;
   line-height: 1.8;
   text-align: center;
@@ -449,7 +455,7 @@
 
 .om-disclaimer {
   margin: 0;
-  padding-top: 2px;
+  padding-top: 0.14em;
   font-size: 0.786em;
   color: var(--om-ink-dim);
   opacity: 0.85;
@@ -460,7 +466,7 @@
 .om-strip {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 0.43em;
 }
 
 .om-strip-title {
@@ -472,7 +478,7 @@
 
 .om-chips {
   display: flex;
-  gap: 6px;
+  gap: 0.43em;
   flex-wrap: wrap;
 }
 
@@ -480,7 +486,7 @@
   display: inline-flex;
   flex-direction: column;
   gap: 1px;
-  padding: 6px 9px;
+  padding: 0.43em 0.64em;
   font: inherit;
   font-size: 0.786em;
   border: 1px solid var(--om-hair-soft);
@@ -517,6 +523,85 @@
   color: var(--om-gold);
 }
 
+/* 今天还没抽：这一格写「未抽」，不写一个抽完就会变的分数 */
+.om-chip-undrawn {
+  color: var(--om-ink-dim);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+
+/* 七天末尾那个「更多…」：虚线框 + 金色，一眼看出它不是某一天 */
+.om-chip-more {
+  border-style: dashed;
+  border-color: var(--om-gold-dim);
+  color: var(--om-gold);
+  align-self: stretch;
+  justify-content: center;
+}
+
+.om-chip-more:hover {
+  border-color: var(--om-gold);
+  background: rgba(224, 189, 124, 0.12);
+}
+
+/* ------------------------------------------------------------------ 更多… */
+
+/*
+ * 「更多…」点开的收束弹窗：整页一层暗幕 + 中间一句话。
+ * 自己搭一层是因为宿主没给面板开弹窗的接口，而这里只是把话说完，不需要任何交互。
+ * 用 position: fixed 盖住面板可视区域；挂在 .om-shell 里以便继承那套色板变量。
+ */
+.om-more {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.71em;
+  background: rgba(6, 7, 10, 0.66);
+  backdrop-filter: blur(6px) saturate(1.05);
+  animation: om-fade-in 160ms ease-out both;
+  cursor: default;
+}
+
+@keyframes om-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.om-more-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.14em;
+  width: min(28em, 100%);
+  padding: 1.71em 1.57em 1.29em;
+  border: 1px solid var(--om-hair);
+  border-radius: var(--radius-lg, 14px);
+  background: var(--om-card-solid);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
+  text-align: center;
+  animation: om-more-in 200ms ease-out both;
+}
+
+@keyframes om-more-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+.om-more-text {
+  margin: 0;
+  font-family: var(--om-font, "KaiTi", "STKaiti", serif);
+  font-size: 1.143em;
+  font-weight: 500;
+  line-height: 1.95;
+  letter-spacing: 0.04em;
+  color: var(--om-ink);
+  text-shadow: none;
+  text-wrap: pretty;
+}
+
 /* ------------------------------------------------------------------ 抽签 */
 
 /*
@@ -526,7 +611,7 @@
 .om-reveal-video {
   display: block;
   width: 100%;
-  max-width: 360px;
+  max-width: 25.7em;
   margin: 0 auto;
   border-radius: var(--radius-lg, 14px);
   background: rgba(255, 255, 255, 0.05);
@@ -555,15 +640,15 @@
 .om-foot {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-top: 6px;
-  padding-top: 12px;
+  gap: 0.71em;
+  margin-top: 0.43em;
+  padding-top: 0.86em;
   border-top: 1px solid var(--om-hair-soft);
 }
 
 .om-avatar {
-  width: 36px;
-  height: 36px;
+  width: 2.57em;
+  height: 2.57em;
   flex: 0 0 auto;
   border-radius: 50%;
   object-fit: cover;
@@ -660,6 +745,11 @@ const TEXT = {
     images: '可用的意象',
     recent: '这七天',
     writtenMark: '已写',
+    undrawn: '未抽',
+    locked: '当时没抽，按固定盐补录',
+    more: '更多…',
+    moreText: '过去的事无可挽回，你能做的只有着眼当下和期待未来',
+    moreClose: '好',
     disclaimer: '相信科学，仅供娱乐参考。',
     failed: '没抽成',
     sealMark: '封',
@@ -695,6 +785,11 @@ const TEXT = {
     images: 'Images to use',
     recent: 'Last seven days',
     writtenMark: 'written',
+    undrawn: 'not drawn',
+    locked: 'not drawn that day; filled in from the fixed salt',
+    more: 'More…',
+    moreText: 'What is past cannot be undone. All that is left to you is to face the present and look forward to what comes.',
+    moreClose: 'Close',
     disclaimer: 'For fun only. Nothing here predicts anything.',
     failed: 'Draw failed',
     sealMark: 'sealed',
@@ -1006,25 +1101,87 @@ globalThis.__omikujiBundle = {
         const renderChips = (s) => {
           chips.replaceChildren();
           for (const day of s.recent) {
+            // 没定下来的那天（就是今天还没抽）横排上写「未抽」，一个数字都不写
+            const provisional = !day.drawn;
             const chip = el('button', `om-chip${day.date === s.date ? ' om-chip-on' : ''}`);
             chip.type = 'button';
-            chip.title = `${day.date} · ${day.tierLabel} · ${day.score} 分`;
+            chip.title = provisional
+              ? `${day.date} · ${T.undrawn}`
+              : `${day.date} · ${day.tierLabel} · ${day.score} 分${day.locked ? ` · ${T.locked}` : ''}`;
             chip.append(
               el('span', 'om-chip-date', shortDate(day.date)),
-              el('span', 'om-chip-tier', day.tierLabel),
+              el('span', provisional ? 'om-chip-tier om-chip-undrawn' : 'om-chip-tier', provisional ? T.undrawn : day.tierLabel),
             );
             if (day.written) chip.append(el('span', 'om-chip-mark', T.writtenMark));
             chip.addEventListener('click', () => void load(day.date, null, null), { signal: ctx.signal });
             chips.append(chip);
           }
+          /*
+           * 翻到头了：七天之后没有更多日签可看，只有这一句。
+           * 放在最后一个日期后面，点开是一个只有一句话的小弹窗。
+           */
+          const more = el('button', 'om-chip om-chip-more', T.more);
+          more.type = 'button';
+          more.addEventListener('click', () => openMore(), { signal: ctx.signal });
+          chips.append(more);
         };
+
+        /*
+         * 「更多…」的弹窗。
+         *
+         * 自己搭一层：宿主没有给面板开弹窗的接口，而这一句只是一个收束，不需要交互。
+         * 挂在 shell 里（而不是 body），这样能继承 shell 上的色板变量；
+         * position: fixed 覆盖整个面板区域，卸载时随 signal 一起收掉。
+         */
+        let moreLayer = null;
+        const closeMore = () => {
+          const layer = moreLayer;
+          if (!layer) return;
+          moreLayer = null;
+          if (typeof layer.remove === 'function') layer.remove();
+        };
+        const openMore = () => {
+          if (moreLayer) return;
+          const layer = el('div', 'om-more');
+          layer.tabIndex = -1; // 让这一层能拿到焦点，Esc 才有地方触发
+          if (typeof layer.setAttribute === 'function') {
+            layer.setAttribute('role', 'dialog');
+            layer.setAttribute('aria-modal', 'true');
+            layer.setAttribute('aria-label', T.more);
+          }
+          const card = el('div', 'om-more-card');
+          const text = el('p', 'om-more-text', T.moreText);
+          const close = el('button', 'om-btn om-btn-primary', T.moreClose);
+          close.type = 'button';
+          close.addEventListener('click', closeMore, { signal: ctx.signal });
+          card.append(text, close);
+          layer.append(card);
+          // 点背板关掉；点卡片本身不关
+          layer.addEventListener('click', (event) => {
+            if (!event || event.target === layer) closeMore();
+          }, { signal: ctx.signal });
+          // Esc 关掉（焦点落在这一层上，键盘事件才会到这儿）
+          layer.addEventListener('keydown', (event) => {
+            if (event && event.key === 'Escape') closeMore();
+          }, { signal: ctx.signal });
+          moreLayer = layer;
+          shell.append(layer);
+          if (typeof layer.focus === 'function') layer.focus();
+        };
+        if (ctx.signal) ctx.signal.addEventListener('abort', closeMore, { once: true });
 
         const render = () => {
           const s = snapshot;
           if (!s) return faceDown();
           meta.textContent = s.date === s.today ? s.today : `${s.date} · ${T.lookBack}`;
           applyText(s.text);
-          stage.replaceChildren(renderCard(s));
+          /*
+           * 服务端说这一天还没定下来（`sign` 为 null，只有「今天还没抽」这一种）：
+           * 背景、头像、字体、日期、七天横排照常画——这些不必等抽签——但中间只摆一张扣着的牌。
+           * 没抽就一个数字都不显示：真抽一次会摇新盐换成另一张，提前显示它才是那个「突变」的来源。
+           */
+          if (!s.sign) faceDown();
+          else stage.replaceChildren(renderCard(s));
           renderChips(s);
           // 快照说包里有背景素材才去取；取一次就够，之后不再重复请求
           if (s.background) void startBackground();
@@ -1032,15 +1189,15 @@ globalThis.__omikujiBundle = {
           return undefined;
         };
 
-        if (ctx.memo.get('drawn', false)) await load(undefined, null, null);
-        else faceDown();
+        // 开屏就先取一次快照：背景、头像、字体、七天横排都不必等抽签才出现
+        await load(undefined, null, null);
       },
     },
   },
 };
 
 
-const SNAPSHOTS = {"builtin":{"mode":"builtin","today":"2026-11-24","date":"2026-11-24","sign":{"date":"2026-11-24","lot":470,"score":3,"tierId":"daxiong","tierLabel":"大凶","poem":"风大，船靠岸，今天不出海。","gloss":"歇着不是退，是等风向。","reading":"谁都有这么一天，过去了就不算数。今天适合修东西、洗衣服、把手机放下。","stars":[{"id":"love","label":"恋爱运","stars":2},{"id":"work","label":"事业运","stars":1},{"id":"money","label":"财运","stars":1},{"id":"health","label":"健康运","stars":2},{"id":"social","label":"社交运","stars":1},{"id":"idle","label":"摸鱼运","stars":1}],"yi":"听完一张旧专辑","ji":"非要把话说赢","color":"松花绿","luckyItem":"第二支笔","luckyNumber":42,"luckyDirection":"东","almanac":"小雪 · 雪还没积起来，先试试　月相·望月 · 最亮的一夜，适合被看见","tone":"只求不出错。不许吓人，给一件收敛的事。","images":["井","船","霜"]},"written":null,"writtenReading":null,"background":true,"text":{},"avatar":true,"recent":[{"date":"2026-11-24","lot":470,"score":3,"tierLabel":"大凶","written":true},{"date":"2026-11-23","lot":130,"score":93,"tierLabel":"上上签","written":false},{"date":"2026-11-22","lot":660,"score":12,"tierLabel":"小凶","written":false},{"date":"2026-11-21","lot":81,"score":23,"tierLabel":"末吉","written":false},{"date":"2026-11-20","lot":875,"score":21,"tierLabel":"小凶","written":false},{"date":"2026-11-19","lot":534,"score":10,"tierLabel":"小凶","written":false},{"date":"2026-11-18","lot":620,"score":33,"tierLabel":"末吉","written":false}]},"pet":{"mode":"pet","today":"2026-11-24","date":"2026-11-24","sign":{"date":"2026-11-24","lot":470,"score":3,"tierId":"daxiong","tierLabel":"大凶","poem":"风大，船靠岸，今天不出海。","gloss":"歇着不是退，是等风向。","reading":"谁都有这么一天，过去了就不算数。今天适合修东西、洗衣服、把手机放下。","stars":[{"id":"love","label":"恋爱运","stars":2},{"id":"work","label":"事业运","stars":1},{"id":"money","label":"财运","stars":1},{"id":"health","label":"健康运","stars":2},{"id":"social","label":"社交运","stars":1},{"id":"idle","label":"摸鱼运","stars":1}],"yi":"听完一张旧专辑","ji":"非要把话说赢","color":"松花绿","luckyItem":"第二支笔","luckyNumber":42,"luckyDirection":"东","almanac":"小雪 · 雪还没积起来，先试试　月相·望月 · 最亮的一夜，适合被看见","tone":"只求不出错。不许吓人，给一件收敛的事。","images":["井","船","霜"]},"written":"檐下站一会儿，等雨小些再走。","writtenReading":"2026-11-24T09:00:00+08:00","background":true,"text":{},"avatar":true,"recent":[{"date":"2026-11-24","lot":470,"score":3,"tierLabel":"大凶","written":true},{"date":"2026-11-23","lot":130,"score":93,"tierLabel":"上上签","written":false},{"date":"2026-11-22","lot":660,"score":12,"tierLabel":"小凶","written":false},{"date":"2026-11-21","lot":81,"score":23,"tierLabel":"末吉","written":false},{"date":"2026-11-20","lot":875,"score":21,"tierLabel":"小凶","written":false},{"date":"2026-11-19","lot":534,"score":10,"tierLabel":"小凶","written":false},{"date":"2026-11-18","lot":620,"score":33,"tierLabel":"末吉","written":false}]}};
+const SNAPSHOTS = {"builtin":{"mode":"builtin","today":"2026-11-24","date":"2026-11-24","sign":{"date":"2026-11-24","lot":618,"score":7,"tierId":"daxiong","tierLabel":"大凶","poem":"谁都有这么一天，过去了就不算数。","gloss":"歇着不是退，是等风向。","reading":"风大，船靠岸。今天不做新决定、不签新的字，把手上的事看住就够了。","stars":[{"id":"love","label":"恋爱运","stars":2},{"id":"work","label":"事业运","stars":1},{"id":"money","label":"财运","stars":1},{"id":"health","label":"健康运","stars":1},{"id":"social","label":"社交运","stars":1},{"id":"idle","label":"摸鱼运","stars":1}],"yi":"给植物浇水","ji":"通宵追完","color":"藕粉","luckyItem":"地铁票根","luckyNumber":97,"luckyDirection":"北","almanac":"小雪 · 雪还没积起来，先试试　月相·望月 · 最亮的一夜，适合被看见","tone":"只求不出错。不许吓人，给一件收敛的事。","images":["檐","灶","路"]},"written":null,"writtenReading":null,"background":true,"text":{},"avatar":true,"drawn":true,"locked":false,"recent":[{"date":"2026-11-24","drawn":true,"locked":false,"lot":618,"score":7,"tierLabel":"大凶","written":true},{"date":"2026-11-23","drawn":true,"locked":false,"lot":130,"score":93,"tierLabel":"上上签","written":false},{"date":"2026-11-22","drawn":true,"locked":false,"lot":660,"score":12,"tierLabel":"小凶","written":false},{"date":"2026-11-21","drawn":true,"locked":false,"lot":81,"score":23,"tierLabel":"末吉","written":false},{"date":"2026-11-20","drawn":true,"locked":false,"lot":875,"score":21,"tierLabel":"小凶","written":false},{"date":"2026-11-19","drawn":true,"locked":false,"lot":534,"score":10,"tierLabel":"小凶","written":false},{"date":"2026-11-18","drawn":true,"locked":false,"lot":620,"score":33,"tierLabel":"末吉","written":false}]},"pet":{"mode":"pet","today":"2026-11-24","date":"2026-11-24","sign":{"date":"2026-11-24","lot":618,"score":7,"tierId":"daxiong","tierLabel":"大凶","poem":"谁都有这么一天，过去了就不算数。","gloss":"歇着不是退，是等风向。","reading":"风大，船靠岸。今天不做新决定、不签新的字，把手上的事看住就够了。","stars":[{"id":"love","label":"恋爱运","stars":2},{"id":"work","label":"事业运","stars":1},{"id":"money","label":"财运","stars":1},{"id":"health","label":"健康运","stars":1},{"id":"social","label":"社交运","stars":1},{"id":"idle","label":"摸鱼运","stars":1}],"yi":"给植物浇水","ji":"通宵追完","color":"藕粉","luckyItem":"地铁票根","luckyNumber":97,"luckyDirection":"北","almanac":"小雪 · 雪还没积起来，先试试　月相·望月 · 最亮的一夜，适合被看见","tone":"只求不出错。不许吓人，给一件收敛的事。","images":["檐","灶","路"]},"written":"檐下站一会儿，等雨小些再走。","writtenReading":"2026-11-24T09:00:00+08:00","background":true,"text":{},"avatar":true,"drawn":true,"locked":false,"recent":[{"date":"2026-11-24","drawn":true,"locked":false,"lot":618,"score":7,"tierLabel":"大凶","written":true},{"date":"2026-11-23","drawn":true,"locked":false,"lot":130,"score":93,"tierLabel":"上上签","written":false},{"date":"2026-11-22","drawn":true,"locked":false,"lot":660,"score":12,"tierLabel":"小凶","written":false},{"date":"2026-11-21","drawn":true,"locked":false,"lot":81,"score":23,"tierLabel":"末吉","written":false},{"date":"2026-11-20","drawn":true,"locked":false,"lot":875,"score":21,"tierLabel":"小凶","written":false},{"date":"2026-11-19","drawn":true,"locked":false,"lot":534,"score":10,"tierLabel":"小凶","written":false},{"date":"2026-11-18","drawn":true,"locked":false,"lot":620,"score":33,"tierLabel":"末吉","written":false}]}};
 let mode = 'builtin';
 const drawn = new Map();
 const memoStore = new Map();
