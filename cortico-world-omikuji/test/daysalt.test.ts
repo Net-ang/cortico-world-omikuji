@@ -13,7 +13,7 @@ import {
   readDaySalt,
   RETENTION_DAYS,
 } from '../src/daysalt.ts';
-import type { OmikujiConfigSection } from '../src/config.ts';
+import { OMIKUJI_DEFAULTS, type OmikujiConfigSection } from '../src/config.ts';
 import { OmikujiWorld } from '../src/world.ts';
 
 const content = loadSignContent();
@@ -31,7 +31,7 @@ function freshDir(name: string): string {
 }
 
 function world(dir: string, overrides: Partial<OmikujiConfigSection> = {}): OmikujiWorld {
-  const cfg: OmikujiConfigSection = { enabled: true, salt: FIXED, wording: 'pet', ...overrides };
+  const cfg: OmikujiConfigSection = { ...OMIKUJI_DEFAULTS, enabled: true, salt: FIXED, wording: 'pet', ...overrides };
   return new OmikujiWorld({ cfg, timezone: TZ, dataDir: dir, packageDir: PACKAGE_DIR, content });
 }
 

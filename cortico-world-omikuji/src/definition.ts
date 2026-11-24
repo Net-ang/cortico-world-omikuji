@@ -1,6 +1,13 @@
 import { describeTools, type WorldDefinition } from 'cortico/world.ts';
 import type { Language } from 'cortico/core/language.ts';
-import { OMIKUJI_DEFAULTS, WORDING_OPTIONS_KIND, type OmikujiConfigSection } from './config.ts';
+import {
+  FONT_LABELS,
+  FONT_OPTIONS_KIND,
+  OMIKUJI_DEFAULTS,
+  WORDING_OPTIONS_KIND,
+  type OmikujiConfigSection,
+  type TextFont,
+} from './config.ts';
 import { loadSignContent } from './content.ts';
 import { OMIKUJI_TOOL_DECLS, OmikujiWorld } from './world.ts';
 
@@ -9,8 +16,14 @@ export const OMIKUJI: WorldDefinition<OmikujiConfigSection> = {
   label: '精灵日签',
   defaults: () => ({ ...OMIKUJI_DEFAULTS }),
   configOptions: (kind: string, language: Language) => {
-    if (kind !== WORDING_OPTIONS_KIND) return [];
     const chinese = language === 'zh' || language === 'zh-Hant';
+    if (kind === FONT_OPTIONS_KIND) {
+      return (Object.keys(FONT_LABELS) as TextFont[]).map((font) => ({
+        value: font,
+        label: FONT_LABELS[font][chinese ? 'zh' : 'en'],
+      }));
+    }
+    if (kind !== WORDING_OPTIONS_KIND) return [];
     return chinese
       ? [
           { value: 'pet', label: '桌宠自己写' },

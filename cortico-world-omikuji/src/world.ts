@@ -17,7 +17,7 @@ import {
 import { ensureSalt } from './salt.ts';
 import { materializeDaySalt, readDaySalt } from './daysalt.ts';
 import { readWording, saveWording } from './wording.ts';
-import { panelInvoke, PANEL_ID, type PanelDeps } from './panel.ts';
+import { panelInvoke, PANEL_ID, type PanelDeps, type PanelText } from './panel.ts';
 import type { OmikujiConfigSection } from './config.ts';
 import { OMIKUJI_CONFIG_GROUP } from './config.ts';
 
@@ -243,7 +243,13 @@ export class OmikujiWorld implements World {
       today: this.#today(),
       signFor: (date: string) => this.signFor(date),
       drawFor: (date: string) => this.drawFor(date),
+      text: this.#text(),
     };
+  }
+
+  /** 字体现读配置：改完刷新面板即生效。字号与字重不开放，写在 CSS 里。 */
+  #text(): PanelText {
+    return { font: this.#opts.cfg.fontFamily ?? 'kai' };
   }
 
   #resolveDate(date?: string): string {

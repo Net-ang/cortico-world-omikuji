@@ -5,6 +5,7 @@ import { test } from 'node:test';
 import { loadSignContent } from '../src/content.ts';
 import { drawSign } from '../src/daily.ts';
 import { readDaySalt } from '../src/daysalt.ts';
+import { OMIKUJI_DEFAULTS } from '../src/config.ts';
 import { saveWording } from '../src/wording.ts';
 import { nowIso } from 'cortico/core/util.ts';
 import { DRAW_VIDEO, PANEL_ID, panelInvoke, panelSnapshot, type PanelDeps } from '../src/panel.ts';
@@ -17,7 +18,7 @@ const SALT = 'feedfacefeedface';
 const TODAY = '2026-11-23';
 
 function deps(mode: 'builtin' | 'pet', dir: string): PanelDeps {
-  const cfg = { enabled: true, salt: SALT, wording: mode };
+  const cfg = { ...OMIKUJI_DEFAULTS, enabled: true, salt: SALT, wording: mode };
   const world = new OmikujiWorld({ cfg, timezone: 'Asia/Shanghai', dataDir: dir, packageDir: PACKAGE_DIR, content });
   return {
     mode,
@@ -26,6 +27,7 @@ function deps(mode: 'builtin' | 'pet', dir: string): PanelDeps {
     today: TODAY,
     signFor: (date: string) => world.signFor(date),
     drawFor: (date: string) => world.drawFor(date),
+    text: { font: 'kai' },
   };
 }
 
@@ -140,7 +142,7 @@ test('面板只有 draw 才摇盐：snapshot 和回看都不摇', async () => {
 
 test('World 的 webUi 声明了面板并接上 invoke', async () => {
   const dir = freshDir('world');
-  const cfg = { enabled: true, salt: SALT, wording: 'pet' as const };
+  const cfg = { ...OMIKUJI_DEFAULTS, enabled: true, salt: SALT, wording: 'pet' as const };
   const world = new OmikujiWorld({ cfg, timezone: 'Asia/Shanghai', dataDir: dir, packageDir: PACKAGE_DIR, content });
   const decl = world.webUi('zh');
   assert.ok(decl.panels?.some((panel) => panel.id === PANEL_ID), 'panel must be declared');

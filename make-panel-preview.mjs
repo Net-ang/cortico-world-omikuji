@@ -51,6 +51,27 @@ const videoDataUrl = existsSync(videoPath)
   ? `data:video/mp4;base64,${readFileSync(videoPath).toString('base64')}`
   : '';
 
+// 面板的动态背景同理：有 assets/panel-bg.* 就一起内联，预览里就能看到真背景
+const bgPath = ['mp4', 'webm', 'mov', 'gif', 'webp', 'png']
+  .map((ext) => join(pkg, `assets/panel-bg.${ext}`))
+  .find((candidate) => existsSync(candidate));
+const bgMime = bgPath?.endsWith('.webm') ? 'video/webm'
+  : bgPath?.endsWith('.mov') ? 'video/quicktime'
+  : bgPath?.endsWith('.gif') ? 'image/gif'
+  : bgPath?.endsWith('.webp') ? 'image/webp'
+  : bgPath?.endsWith('.png') ? 'image/png'
+  : 'video/mp4';
+const avatarPath = ['jpg', 'jpeg', 'png', 'webp', 'svg']
+  .map((ext) => join(pkg, `assets/avatar.${ext}`))
+  .find((candidate) => existsSync(candidate));
+const avatarMime = avatarPath?.endsWith('.png') ? 'image/png' : avatarPath?.endsWith('.webp') ? 'image/webp' : avatarPath?.endsWith('.svg') ? 'image/svg+xml' : 'image/jpeg';
+const avatarDataUrl = avatarPath ? `data:${avatarMime};base64,${readFileSync(avatarPath).toString('base64')}` : '';
+
+const bgDataUrl = bgPath && readFileSync(bgPath).length <= 8 * 1024 * 1024
+  ? `data:${bgMime};base64,${readFileSync(bgPath).toString('base64')}`
+  : '';
+const bgSkipped = Boolean(bgPath) && bgDataUrl === '';
+
 const html = `<!doctype html>
 <html lang="zh">
 <head>
@@ -78,7 +99,7 @@ ${css}
 </head>
 <body>
 <div class="bar">
-  <span>精灵日签 · 面板预览（数据是生成时算好的快照）</span>
+  <span>精灵日签 · 面板预览（数据是生成时算好的快照）${bgSkipped ? "　·　背景视频太大（>8 MB）未内联，预览里不显示背景" : ""}</span>
   <button data-mode="builtin" class="on">内置文案</button>
   <button data-mode="pet">桌宠自己写</button>
   <button id="reset">重置成封着的状态</button>
@@ -108,9 +129,13 @@ function mount() {
       drawn.set(mode, method === 'draw' || drawn.get(mode));
       return SNAPSHOTS[mode];
     },
-    // 预览内联了包里的 draw.mp4：点按钮能真播一遍
-    invokeBinary: async () => {
-      const url = ${JSON.stringify(videoDataUrl)};
+    // 预览内联了包里的 draw.mp4（抽签动画）、panel-bg.*（背景视频或动图）、avatar.*（头像）
+    invokeBinary: async (method) => {
+      const url = method === 'background'
+        ? ${JSON.stringify(bgDataUrl)}
+        : method === 'avatar'
+          ? ${JSON.stringify(avatarDataUrl)}
+          : ${JSON.stringify(videoDataUrl)};
       if (!url) return new Blob(['{}'], { type: 'application/json' });
       return await (await fetch(url)).blob();
     },

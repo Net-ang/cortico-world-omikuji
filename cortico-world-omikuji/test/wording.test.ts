@@ -17,7 +17,7 @@ const SALT = 'feedfacefeedface';
 
 function makeWorld(wording: 'builtin' | 'pet', dataDir: string): OmikujiWorld {
   mkdirSync(dataDir, { recursive: true });
-  const cfg: OmikujiConfigSection = { enabled: true, salt: SALT, wording };
+  const cfg: OmikujiConfigSection = { ...OMIKUJI_DEFAULTS, enabled: true, salt: SALT, wording };
   return new OmikujiWorld({ cfg, timezone: 'Asia/Shanghai', dataDir, packageDir: PACKAGE_DIR, content });
 }
 
@@ -157,7 +157,7 @@ test('默认让桌宠自己写：缺省配置下就暴露两个工具，回执�
 
 test('模式热切换：改配置下一次调用即生效', async () => {
   const dir = freshDir('pet-hot');
-  const cfg: OmikujiConfigSection = { enabled: true, salt: SALT, wording: 'builtin' };
+  const cfg: OmikujiConfigSection = { ...OMIKUJI_DEFAULTS, enabled: true, salt: SALT, wording: 'builtin' };
   const world = new OmikujiWorld({ cfg, timezone: 'Asia/Shanghai', dataDir: dir, packageDir: PACKAGE_DIR, content });
   assert.equal(world.tools().length, 1);
   cfg.wording = 'pet';

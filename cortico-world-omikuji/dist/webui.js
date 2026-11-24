@@ -15,6 +15,7 @@ const TEXT = {
     draw: '抽今天的签',
     drawing: '抽签中…',
     again: '再看一眼',
+    replaying: '再放一次…',
     backToday: '回到今天',
     lookBack: '回看',
     poem: '签文',
@@ -37,6 +38,9 @@ const TEXT = {
     failed: '没抽成',
     sealMark: '封',
     blessing: '愿你今天顺手抽到的那一签，刚好对上此刻的心情。',
+    authorNote: '作者寄语：',
+    authorWish: 'wish you a happy day',
+    authorWishZh: '（愿你天天开心）',
     intro:
       '在桌宠与世界交汇的日常里，总有些时刻需要一点轻盈的停顿——不需要宏大的占卜，也不必把日子过得像一张排满任务的清单。把每天的签文做成一件随手可翻的小事，像窗边落下的微光，像炉火旁刚好温热的杯盏，陪你在敲字、发呆、等编译或刷屏的间隙，抽一张属于今天的签。',
   },
@@ -46,6 +50,7 @@ const TEXT = {
     draw: "Draw today's slip",
     drawing: 'Drawing…',
     again: 'Look again',
+    replaying: 'Replaying…',
     backToday: 'Back to today',
     lookBack: 'Earlier',
     poem: 'Verse',
@@ -68,6 +73,9 @@ const TEXT = {
     failed: 'Draw failed',
     sealMark: 'sealed',
     blessing: 'May the slip you happened to draw today land close to how you feel right now.',
+    authorNote: 'A note from the author: ',
+    authorWish: 'wish you a happy day',
+    authorWishZh: '(愿你天天开心)',
     intro:
       'Some moments in the everyday where the pet and the world meet ask for a light pause — no grand divination, no day lived like a checklist. Make the daily slip a small thing you can turn over in passing: a glimmer by the window, a cup still warm beside the stove. Draw one for today, in the gaps between typing, staring off, waiting for a build, or scrolling.',
   },
@@ -97,7 +105,17 @@ export default {
     now: {
       async mount(ctx) {
         const T = text(ctx.language);
+
+        /*
+         * 动态背景：包里有 assets/panel-bg.mp4 就铺在整页底下（cover + 压暗遮罩），
+         * 没有就什么都不做。它是装饰，取不到也不影响抽签。
+         */
+        const shell = el('div', 'om-shell');
+        const bgLayer = el('div', 'om-bg');
         const app = el('div', 'om-app');
+        shell.append(bgLayer, app);
+        ctx.root.append(shell);
+
         const head = el('header', 'om-head');
         const meta = el('p', 'om-meta', '');
         head.append(el('h1', 'om-title', T.title), meta);
@@ -106,17 +124,93 @@ export default {
         const chips = el('div', 'om-chips');
         strip.append(el('p', 'om-strip-title', T.recent), chips);
         const intro = el('p', 'om-intro', T.intro);
-        app.append(head, intro, stage, strip);
-        ctx.root.append(app);
+        // 最底下的落款：头像 + 名字 + 寄语（英文那条用真斜体，中文不斜）
+        const foot = el('footer', 'om-foot');
+        const avatar = el('img', 'om-avatar');
+        avatar.alt = '';
+        const footText = el('div', 'om-foot-text');
+        const footName = el('p', 'om-foot-name', '奶糖_net');
+        const footNote = el('p', 'om-foot-note');
+        footNote.append(
+          document.createTextNode(T.authorNote),
+          el('em', 'om-foot-wish', T.authorWish),
+          document.createTextNode(T.authorWishZh),
+        );
+        footText.append(footName, footNote);
+        foot.append(avatar, footText);
+        app.append(head, intro, stage, strip, foot);
+
+        /*
+         * 字体：只写 data-font，具体字体栈在 css 里，缺哪个由 CSS 回退。
+         * 字号、字重、斜体不开放给用户——那是排版决定，直接写在 css 里。
+         */
+        let wenkaiLinked = false;
+        const applyText = (text) => {
+          if (!text) return;
+          if (text.font) shell.dataset.font = text.font;
+          // 「霞鹜文楷」是本机未必装的开源字体：只有选它时才去 CDN 取样式表
+          if (text.font === 'wenkai' && !wenkaiLinked) {
+            wenkaiLinked = true;
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = 'https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.7.0/style.css';
+            link.addEventListener('error', () => { wenkaiLinked = false; });
+            document.head.append(link);
+          }
+        };
+
+        let avatarStarted = false;
+        const startAvatar = async () => {
+          if (avatarStarted || !ctx.invokeBinary) return;
+          avatarStarted = true;
+          try {
+            const blob = await ctx.invokeBinary('avatar');
+            if (!blob || !/^image\//.test(blob.type ?? '')) { avatarStarted = false; return; }
+            const url = window.URL.createObjectURL(blob);
+            avatar.src = url;
+            if (ctx.signal) ctx.signal.addEventListener('abort', () => window.URL.revokeObjectURL(url), { once: true });
+          } catch {
+            avatarStarted = false;
+          }
+        };
+
+        let bgStarted = false;
+        const startBackground = async () => {
+          if (bgStarted || !ctx.invokeBinary) return;
+          bgStarted = true;
+          try {
+            const blob = await ctx.invokeBinary('background');
+            const type = blob?.type ?? '';
+            const isVideo = /^video\//.test(type);
+            // GIF / WebP 这类动图也是 image/*，浏览器自己会循环，所以两种都收
+            if (!blob || !(isVideo || /^image\//.test(type))) return;
+            const url = window.URL.createObjectURL(blob);
+            const media = document.createElement(isVideo ? 'video' : 'img');
+            media.className = isVideo ? 'om-bg-video' : 'om-bg-image';
+            media.src = url;
+            if (isVideo) {
+              media.muted = true;
+              media.loop = true;
+              media.autoplay = true;
+              media.playsInline = true;
+            }
+            bgLayer.append(media);
+            // 面板卸载时释放 blob 地址
+            if (ctx.signal) ctx.signal.addEventListener('abort', () => window.URL.revokeObjectURL(url), { once: true });
+            if (isVideo && typeof media.play === 'function') Promise.resolve(media.play()).catch(() => {});
+          } catch {
+            bgStarted = false; // 取不到就算了，下次再试
+          }
+        };
 
         let snapshot = null;
         /** 上一次渲染是不是「刚抽出来」——用来只在翻开那一刻挂动画类。 */
         let justDrew = false;
 
-        const setBusy = (button, busy, idleLabel) => {
+        const setBusy = (button, busy, idleLabel, busyLabel = T.drawing) => {
           if (!button) return;
           button.disabled = busy;
-          button.textContent = busy ? T.drawing : idleLabel;
+          button.textContent = busy ? busyLabel : idleLabel;
         };
 
         /*
@@ -162,15 +256,19 @@ export default {
         /*
          * `draw` 才是抽签：那一天还没有盐就摇一个真随机的出来。
          * 打开面板、看七天、回看某一天都走 `snapshot`，只读，不产生随机。
+         *
+         * `animate` 决定要不要再放一遍抽签动画：「抽今天的签」和「再看一眼」都放；
+         * 回看别的日子、切页签只读不放。
          */
-        const load = async (date, button, idleLabel, method = 'snapshot') => {
-          setBusy(button, true, idleLabel);
+        const load = async (date, button, idleLabel, method = 'snapshot', animate = method === 'draw') => {
+          // 重放动画时别显示「抽签中…」——签没变，只是再看一遍
+          setBusy(button, true, idleLabel, animate && method === 'snapshot' ? T.replaying : T.drawing);
           try {
             snapshot = await ctx.invoke(method, date ? [date] : []);
-            justDrew = method === 'draw';
+            justDrew = animate;
             // 今天这一页翻开过就不再扣回去；回看别的日子不动这个标记。
             if (method === 'draw' && !date) ctx.memo.set('drawn', true);
-            if (method === 'draw') await playDrawAnimation();
+            if (animate) await playDrawAnimation();
             render();
           } catch (err) {
             stage.replaceChildren();
@@ -178,7 +276,7 @@ export default {
             box.append(el('p', 'om-err', `${T.failed}：${err && err.message ? err.message : String(err)}`));
             const retry = el('button', 'om-btn', T.draw);
             retry.type = 'button';
-            retry.addEventListener('click', () => void load(date, retry, T.draw, method), { signal: ctx.signal });
+            retry.addEventListener('click', () => void load(date, retry, T.draw, method, animate), { signal: ctx.signal });
             box.append(retry);
             stage.append(box);
             ctx.memo.set('drawn', false);
@@ -258,7 +356,8 @@ export default {
           const actions = el('div', 'om-actions');
           const again = el('button', 'om-btn', T.again);
           again.type = 'button';
-          again.addEventListener('click', () => void load(s.date, again, T.again), { signal: ctx.signal });
+          // 再看一眼 = 把动画重放一遍再看这段话，不是再抽一次（签不会变）
+          again.addEventListener('click', () => void load(s.date, again, T.again, 'snapshot', true), { signal: ctx.signal });
           actions.append(again);
           if (s.date !== s.today) {
             const back = el('button', 'om-btn om-btn-primary', T.backToday);
@@ -290,8 +389,12 @@ export default {
           const s = snapshot;
           if (!s) return faceDown();
           meta.textContent = s.date === s.today ? s.today : `${s.date} · ${T.lookBack}`;
+          applyText(s.text);
           stage.replaceChildren(renderCard(s));
           renderChips(s);
+          // 快照说包里有背景素材才去取；取一次就够，之后不再重复请求
+          if (s.background) void startBackground();
+          if (s.avatar) void startAvatar();
           return undefined;
         };
 

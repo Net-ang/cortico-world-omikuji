@@ -6,7 +6,7 @@
  *
  *   node --experimental-transform-types tools/dom-smoke.mjs
  */
-import { mkdirSync, readFileSync, rmSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import bundle from '../dist/webui.js';
@@ -29,6 +29,26 @@ class FakeNode {
     this.type = '';
     this.src = '';
     this.parent = null;
+    this.dataset = {};
+    this._vars = {};
+    this.style = {
+      setProperty: (key, value) => { this._vars[key] = String(value); },
+      getPropertyValue: (key) => this._vars[key] ?? '',
+    };
+  }
+  get classList() {
+    const self = this;
+    const read = () => (self.className ?? '').split(/\s+/).filter(Boolean);
+    return {
+      add: (name) => { if (!read().includes(name)) self.className = [...read(), name].join(' '); },
+      contains: (name) => read().includes(name),
+      toggle: (name, force) => {
+        const has = read().includes(name);
+        const want = force === undefined ? !has : Boolean(force);
+        if (want && !has) self.className = [...read(), name].join(' ');
+        if (!want && has) self.className = read().filter((item) => item !== name).join(' ');
+      },
+    };
   }
   set textContent(v) {
     this.own = v == null ? '' : String(v);
@@ -59,7 +79,15 @@ class FakeNode {
   }
 }
 
-globalThis.document = { createElement: (tag) => new FakeNode(tag) };
+globalThis.document = {
+  createElement: (tag) => new FakeNode(tag),
+  // 页脚用 createTextNode 拼中文/英文片段
+  createTextNode: (text) => {
+    const node = new FakeNode('#text');
+    node.textContent = text;
+    return node;
+  },
+};
 // 浏览器里 window.URL 负责 blob 地址，这里给个假的
 globalThis.window = globalThis;
 globalThis.URL.createObjectURL = () => 'blob:fake';
@@ -104,22 +132,23 @@ const check = (label, cond, detail = '') => {
   }
 };
 
-function mountPanel(dir, mode, { fresh = true, video = true } = {}) {
+function mountPanel(dir, mode, { fresh = true, video = true, pkgDir = packageDir, hasBackground, text = { font: 'kai' } } = {}) {
   if (fresh) rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
   const world = new OmikujiWorld({
     cfg: { enabled: true, salt: SALT, wording: mode },
     timezone: 'Asia/Shanghai',
     dataDir: dir,
-    packageDir,
+    packageDir: pkgDir,
     content,
   });
   const deps = {
     mode,
     dataDir: dir,
-    packageDir,
+    packageDir: pkgDir,
     today: TODAY,
     signFor: (date) => world.signFor(date),
+    text,
     drawFor: (date) => world.drawFor(date),
   };
   const memo = new Map();
@@ -132,7 +161,7 @@ function mountPanel(dir, mode, { fresh = true, video = true } = {}) {
     memo: { get: (k, f) => (memo.has(k) ? memo.get(k) : f), set: (k, v) => void memo.set(k, v) },
     invoke: (method, args) => panelInvoke(deps, PANEL_ID, method, args ?? []),
     invokeBinary: async (method) => {
-      if (!video) return new Blob(['{}'], { type: 'application/json' });
+      if (method === 'background' ? hasBackground === false : !video) return new Blob(['{}'], { type: 'application/json' });
       const out = await panelInvoke(deps, PANEL_ID, method, []);
       if (!out || !out.$file) return new Blob(['{}'], { type: 'application/json' });
       return new Blob([readFileSync(out.$file.path)], { type: out.$file.mime });
@@ -148,8 +177,8 @@ function mountPanel(dir, mode, { fresh = true, video = true } = {}) {
 /** 点「抽今天的签」并把动画放完：等 video 出现，手动触发 ended（桩里不会自己播）。 */
 async function drawAndWait(root) {
   byText(root, '抽今天的签').listeners.click[0]();
-  await until('抽签动画', () => findAll(root, (node) => node.tagName === 'video').length === 1);
-  const videoNode = findAll(root, (node) => node.tagName === 'video')[0];
+  await until('抽签动画', () => findAll(root, (node) => (node.className ?? '') === 'om-reveal-video').length === 1);
+  const videoNode = findAll(root, (node) => (node.className ?? '') === 'om-reveal-video')[0];
   videoNode.listeners.ended[0]();
   await until('卡面', () => isRevealed(root));
   return videoNode;
@@ -173,13 +202,13 @@ async function drawAndWait(root) {
   check('扣着的时候有「抽今天的签」按钮', Boolean(drawButton));
 
   drawButton.listeners.click[0]();
-  await until('抽签动画', () => findAll(ctx.root, (node) => node.tagName === 'video').length === 1);
-  const videoNode = findAll(ctx.root, (node) => node.tagName === 'video')[0];
+  await until('抽签动画', () => findAll(ctx.root, (node) => (node.className ?? '') === 'om-reveal-video').length === 1);
+  const videoNode = findAll(ctx.root, (node) => (node.className ?? '') === 'om-reveal-video')[0];
   check('抽签先播动画：出现 video 且用 blob 地址', videoNode.src === 'blob:fake');
   check('动画默认静音（否则浏览器不给自动播）', videoNode.muted === true);
   videoNode.listeners.ended[0]();
   await until('卡面', () => isRevealed(ctx.root));
-  check('播完之后 video 被移除', findAll(ctx.root, (node) => node.tagName === 'video').length === 0);
+  check('播完之后抽签动画的 video 被移除', findAll(ctx.root, (node) => (node.className ?? '') === 'om-reveal-video').length === 0);
   check('拿到的就是包里那个 mp4', readFileSync(join(packageDir, 'assets/draw.mp4')).length > 100_000);
 
   check('翻开后有这一天的签文', ctx.root.textContent.includes(today.poem), today.poem);
@@ -194,6 +223,10 @@ async function drawAndWait(root) {
   check('幸运四项并成一行', findAll(ctx.root, (n) => (n.className ?? '') === 'om-lucky').length === 1);
   check('牌面带免责说明', ctx.root.textContent.includes('相信科学，仅供娱乐参考。'));
   check('牌底有收束句', ctx.root.textContent.includes('刚好对上此刻的心情'));
+  check('最底下有作者署名', ctx.root.textContent.includes('奶糖_net'));
+  check('寄语用中英两种写法', ctx.root.textContent.includes('作者寄语：') && ctx.root.textContent.includes('wish you a happy day') && ctx.root.textContent.includes('愿你天天开心'));
+  check('寄语里的英文是 em（真斜体）', findAll(ctx.root, (n) => n.tagName === 'em' && n.textContent === 'wish you a happy day').length === 1);
+  check('有头像素材时放头像', findAll(ctx.root, (n) => n.tagName === 'img' && (n.className ?? '') === 'om-avatar').length === 1);
   const isChip = (node) => node.tagName === 'button' && /^om-chip(\s|$)/.test(node.className);
   check('七天都画出来了', findAll(ctx.root, isChip).length === 7);
   check('翻开标记写进了 memo', ctx.memo.get('drawn', false) === true);
@@ -201,11 +234,16 @@ async function drawAndWait(root) {
   check('翻开后「封」印消失', hasClass('om-seal-mark') === 0);
   check('刚抽出来的那张带动画钩子 om-reveal', hasClass('om-reveal') === 1);
 
-  // 再点「再看一眼」不该重复播动画：钩子只在抽出来那一次
+  // 「再看一眼」= 把动画重放一遍，签本身不变
+  const scoreBefore = deps.signFor(TODAY).score;
   const againButton = byText(ctx.root, '再看一眼');
   againButton.listeners.click[0]();
-  await until('重绘', () => hasClass('om-reveal') === 0);
-  check('重看一次不带动画钩子', hasClass('om-reveal') === 0);
+  await until('重放动画', () => findAll(ctx.root, (node) => (node.className ?? '') === 'om-reveal-video').length === 1);
+  check('再看一眼会重放抽签动画', true);
+  findAll(ctx.root, (node) => (node.className ?? '') === 'om-reveal-video')[0].listeners.ended[0]();
+  await until('重放结束', () => isRevealed(ctx.root));
+  check('重放后仍是同一张签', deps.signFor(TODAY).score === scoreBefore);
+  check('重放后卡面照样带动画钩子', hasClass('om-reveal') === 1);
 
   const chips = findAll(ctx.root, isChip);
   const target = chips.find((chip) => chip.textContent.includes('11-20'));
@@ -252,7 +290,73 @@ async function drawAndWait(root) {
   await bundle.panels.now.mount(ctx);
   byText(ctx.root, '抽今天的签').listeners.click[0]();
   await until('无动画也能揭晓', () => isRevealed(ctx.root));
-  check('没有动画素材时直接揭晓，不留空档', findAll(ctx.root, (node) => node.tagName === 'video').length === 0);
+  check('没有动画素材时直接揭晓，不留空档', findAll(ctx.root, (node) => (node.className ?? '') === 'om-reveal-video').length === 0);
+}
+
+// ----------------------------------------------------------------- 动态背景
+
+{
+  // 造一个假包目录，里面放一个假的 panel-bg.mp4：只验代码路径，不验画质
+  const fakePkg = join(packageDir, '.tmp-test', 'fake-package');
+  rmSync(fakePkg, { recursive: true, force: true });
+  mkdirSync(join(fakePkg, 'assets'), { recursive: true });
+  writeFileSync(join(fakePkg, 'assets', 'panel-bg.mp4'), Buffer.alloc(2048, 7));
+  copyFileSync(join(packageDir, 'assets', 'draw.mp4'), join(fakePkg, 'assets', 'draw.mp4'));
+
+  const dir = join(packageDir, '.tmp-test', 'smoke-bg');
+  const { ctx } = mountPanel(dir, 'builtin', { pkgDir: fakePkg, hasBackground: true });
+  await bundle.panels.now.mount(ctx);
+  await drawAndWait(ctx.root);
+  await until('背景视频', () => findAll(ctx.root, (node) => (node.className ?? '') === 'om-bg-video').length === 1);
+  const bg = findAll(ctx.root, (node) => (node.className ?? '') === 'om-bg-video')[0];
+  check('有素材时铺动态背景', Boolean(bg));
+  check('背景是循环静音的', bg.loop === true && bg.muted === true);
+  check('背景在内容之下（有独立图层）', findAll(ctx.root, (node) => (node.className ?? '') === 'om-bg').length === 1);
+  const snapWithBg = await ctx.invoke('snapshot', []);
+  check('快照报告 background: true', snapWithBg.background === true);
+  rmSync(fakePkg, { recursive: true, force: true });
+}
+
+{
+  // 造一个没有背景素材的包目录：既不该有 background，也不该报错
+  const barePkg = join(packageDir, '.tmp-test', 'bare-package');
+  rmSync(barePkg, { recursive: true, force: true });
+  mkdirSync(join(barePkg, 'assets'), { recursive: true });
+  copyFileSync(join(packageDir, 'assets', 'draw.mp4'), join(barePkg, 'assets', 'draw.mp4'));
+  const dir = join(packageDir, '.tmp-test', 'smoke-nobg');
+  const { ctx } = mountPanel(dir, 'builtin', { pkgDir: barePkg });
+  await bundle.panels.now.mount(ctx);
+  await drawAndWait(ctx.root);
+  check('没有素材时没有任何背景层', findAll(ctx.root, (node) => /^om-bg-(video|image)$/.test(node.className ?? '')).length === 0);
+  rmSync(barePkg, { recursive: true, force: true });
+}
+
+{
+  // 真实包里的 GIF 背景：客户端要认出 image/gif 并铺成 <img>
+  const dir = join(packageDir, '.tmp-test', 'smoke-gif');
+  const { ctx } = mountPanel(dir, 'builtin');
+  await bundle.panels.now.mount(ctx);
+  await drawAndWait(ctx.root);
+  // 真实包里的背景素材（视频或动图都算）：等它落位再断言
+  const bgLayerNodes = () => findAll(ctx.root, (node) => /^om-bg-(video|image)$/.test(node.className ?? ''));
+  await until('背景素材', () => bgLayerNodes().length === 1);
+  const bgMedia = bgLayerNodes()[0];
+  check('真实背景素材铺上了（blob 地址）', String(bgMedia.src).startsWith('blob:'));
+  check('视频背景要循环且静音', bgMedia.tagName === 'img' || (bgMedia.loop === true && bgMedia.muted === true));
+  await until('头像', () => findAll(ctx.root, (node) => node.tagName === 'img' && (node.className ?? '') === 'om-avatar' && String(node.src).startsWith('blob:')).length === 1);
+  check('头像走 image/* 也放上了', true);
+}
+
+// ----------------------------------------------------------------- 排版
+
+{
+  const dir = join(packageDir, '.tmp-test', 'smoke-type');
+  const { ctx } = mountPanel(dir, 'builtin', { text: { font: 'hand' } });
+  await bundle.panels.now.mount(ctx);
+  await drawAndWait(ctx.root);
+  const shell = findAll(ctx.root, (node) => (node.className ?? '').split(/\s+/).includes('om-shell'))[0];
+  check('排版：字体写进 data-font', shell?.dataset?.font === 'hand');
+  check('排版：字号字重不对外开放（快照里只有 font）', Object.keys((await ctx.invoke('snapshot', [])).text).join(',') === 'font');
 }
 
 // ----------------------------------------------------------------- 失败路径

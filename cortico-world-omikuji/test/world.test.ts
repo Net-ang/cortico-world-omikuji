@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import type { WorldHost } from 'cortico/core/types.ts';
 import { loadSignContent } from '../src/content.ts';
 import { drawSign } from '../src/daily.ts';
-import type { OmikujiConfigSection } from '../src/config.ts';
+import { OMIKUJI_DEFAULTS, type OmikujiConfigSection } from '../src/config.ts';
 import { OmikujiWorld } from '../src/world.ts';
 
 const content = loadSignContent();
@@ -15,7 +15,7 @@ const dataDir = join(import.meta.dirname, '..', '.tmp-test', 'world');
 function makeWorld(cfg: Partial<OmikujiConfigSection> = {}): OmikujiWorld {
   mkdirSync(dataDir, { recursive: true });
   return new OmikujiWorld({
-    cfg: { enabled: true, salt: '', wording: 'builtin', ...cfg },
+    cfg: { ...OMIKUJI_DEFAULTS, enabled: true, salt: '', wording: 'builtin', ...cfg },
     timezone: 'Asia/Shanghai',
     dataDir,
     packageDir: PACKAGE_DIR,
