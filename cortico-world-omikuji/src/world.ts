@@ -17,6 +17,8 @@ import {
 import { ensureSalt } from './salt.ts';
 import { lockFallbackDays, materializeDaySalt, readDayRecord } from './daysalt.ts';
 import { markReminded, remindedDate } from './remind.ts';
+import { markSettled, settledDate } from './settle.ts';
+import { daysBefore } from './daysalt.ts';
 import { readWording, saveWording } from './wording.ts';
 import { panelInvoke, PANEL_ID, type PanelDeps, type PanelText } from './panel.ts';
 import type { OmikujiConfigSection } from './config.ts';
@@ -24,8 +26,11 @@ import { OMIKUJI_CONFIG_GROUP } from './config.ts';
 
 const ENV_PROMPT_FILE = fileURLToPath(new URL('./ENV_PROMPT.md', import.meta.url));
 
-/** 提醒的检查间隔与起始时刻（部署时区的整点，含）。 */
+/** 巡检间隔；结算与提醒的起始整点（部署时区，含）。 */
 const REMIND_INTERVAL_MS = 10 * 60 * 1000;
+/** 每天几点结算昨天（裁决时刻）。 */
+const SETTLE_HOUR = 7;
+/** 每天几点起还没抽签就提醒一次。 */
 const REMIND_AFTER_HOUR = 9;
 
 export const OMIKUJI_TOOL_DECLS: readonly ToolSpec[] = [
@@ -273,10 +278,12 @@ export class OmikujiWorld implements World {
     this.#host = host;
     // 先把「过去了却没抽」的日子补录掉，再判断今天
     this.#sweepUndrawn();
-    const note = readDayRecord(this.#opts.dataDir, this.#today())
+    // 开机时如果已经过了 7 点、今天还没结算过，就把昨天结算掉，并写进挂载事件里
+    const settled = this.#settleIfDue();
+    const head = readDayRecord(this.#opts.dataDir, this.#today())
       ? this.#drawnNote(this.#today())
       : `精灵日签已挂载。今天（${this.#today()}）还没抽签。`;
-    await this.#push(host, 'omikuji.started', note);
+    await this.#push(host, 'omikuji.started', settled ? `${head}\n${settled}` : head);
     this.#scheduleReminder();
   }
 
@@ -287,16 +294,49 @@ export class OmikujiWorld implements World {
   }
 
   /**
+   * 每日结算：**每天早上 7 点**（部署时区）把昨天定下来，并把日子翻到今天。
+   *
+   * 昨天抽过 → 用当时摇的盐（那张早已定死）；昨天没抽 → 用「日期 + 固定本机盐」补录并冻结。
+   * 同一天只做一次（记在 `omikuji-settle.json`），跨零点自动重置。
+   *
+   * 返回一句给模型看的话；今天已经结算过或还没到 7 点就返回 null。
+   * 不做成会唤醒模型的事件：调用方决定是并进挂载事件，还是单独推一条 piggyback。
+   */
+  #settleIfDue(): string | null {
+    try {
+      const today = this.#today();
+      if (settledDate(this.#opts.dataDir) === today) return null;
+      const hour = Number(this.#nowIso().slice(11, 13));
+      if (!(hour >= SETTLE_HOUR)) return null;
+
+      this.#sweepUndrawn();                       // 昨天（以及更早没抽的）在这里定下来
+      markSettled(this.#opts.dataDir, today);
+
+      const yesterday = daysBefore(today, 2)[0]!;
+      const record = readDayRecord(this.#opts.dataDir, yesterday);
+      if (!record) return `新的一天（${today}）开始。昨天（${yesterday}）还没有记录。`;
+      const sign = this.signFor(yesterday);
+      const how = record.source === 'fallback' ? '昨天没抽，按日期 + 固定盐定为' : '昨天的签是';
+      return `新的一天（${today}）开始。${how}：第 ${sign.lot} 签 · ${sign.tierLabel} · ${sign.score} 分。`;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * 补录：七天窗口里「已经过去、却没有抽过」的日子，按「日期 + 固定本机盐」定下来。
    *
    * 这是作者定的规则——当天没抽，第二天回头就用固定盐把它生成出来，之后就冻结了。
-   * 放在挂载时做一次（顺便覆盖「昨天没开机」这种跨了几天的情况），
-   * 定时器那一拍也会做一次，所以跨零点不用重启。
+   * **只在每天 7 点（裁决时刻）之后做**：夜里到早上 7 点之前不补录，那段时间看昨天
+   * 仍是「日期 + 固定盐」算出来的同一张（结果一样，只是还没落成记录）。
+   * 挂载时与每 10 分钟巡检都会走这里，所以跨零点不用重启。
    *
    * 今天永远不补：今天没抽就是没抽，一个数字都不给。
    */
   #sweepUndrawn(): string[] {
     try {
+      // 裁决时刻之前不补录：昨天要等 7 点那一裁决才定下来（夜里看昨天仍按固定盐算，结果一样）
+      if (Number(this.#nowIso().slice(11, 13)) < SETTLE_HOUR) return [];
       const locked = lockFallbackDays(this.#opts.dataDir, this.#today(), this.#fixedSalt(), this.#nowIso());
       if (locked.length > 0) {
         this.#host?.log?.info?.(`精灵日签：补录了没抽的日子 ${locked.join('、')}（按日期 + 固定盐）`);
@@ -330,10 +370,13 @@ export class OmikujiWorld implements World {
   }
 
   /**
-   * 「今天还没抽签」的提醒：每 10 分钟看一眼，一天最多提醒一次，且只在 9 点之后。
+   * 每日巡检：每 10 分钟一拍，按顺序做两件事。
    *
-   * 判断的是**当下**状态，不是挂载那一刻：抽过了就永远不会提醒；跨过零点自动重置。
-   * 提醒本身也走 piggyback，所以不会自己唤醒模型，等他下次说话时自然捎带进去。
+   * 1. **7 点结算**（`#settleIfDue`）：把昨天定下来，并推一条 piggyback 事件告诉模型
+   *    「新的一天开始了 + 昨天是什么签」。
+   * 2. **9 点后提醒**：今天还没抽签就提一句，一天最多一次。
+   *
+   * 两次判断都看**当下**状态，所以跨零点不用重启，开机晚了也会立刻补上。
    */
   #scheduleReminder(): void {
     if (this.#reminderTimer !== null) return;
@@ -341,7 +384,15 @@ export class OmikujiWorld implements World {
       const host = this.#host;
       if (!host) return;
       try {
-        // 跨零点也算一次：先把昨天之前没抽的补录掉，再判断今天
+        // ① 结算（7 点后，每天一次）
+        const settled = this.#settleIfDue();
+        if (settled) {
+          void this.#push(host, 'omikuji.settled', settled).catch(() => {
+            // 推不出去就算了：补录已经落盘，数据是对的
+          });
+        }
+
+        // ② 提醒（9 点后，每天一次）
         this.#sweepUndrawn();
         const today = this.#today();
         if (readDayRecord(this.#opts.dataDir, today)) return;          // 定下来了

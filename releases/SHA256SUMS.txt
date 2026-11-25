@@ -16,3 +16,4 @@ bdffe6c4e3feac1fd0e873fde01ae99b4961f1a8020e8ec3ecb34914f2034565  cortico-world-
 9b108b9e639b0e580694b2e89b3d837b7b94c6a2862face3da9f34902e6505a7  cortico-world-omikuji-0.4.10.tgz
 17df7fd426cfea71891867dd6607a819f67d3e1dc6815f01426339a45eccd95f  cortico-world-omikuji-0.4.11.tgz
 390ace8ee2c25c1f702ddb61493e5cfb455bf76ebe8795161dab025c36f25242  cortico-world-omikuji-0.4.12.tgz
+68a78c10e87ac14c9281bc3bd202c9058e615cbdaf1e93f9826e1489232dbaa4  cortico-world-omikuji-0.4.13.tgz

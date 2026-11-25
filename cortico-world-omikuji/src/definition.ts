@@ -71,6 +71,13 @@ export const OMIKUJI: WorldDefinition<OmikujiConfigSection> = {
           en: 'A once-a-day nudge after 9am when the day is still undrawn (delivered with the next batch).',
         },
       },
+      {
+        type: 'omikuji.settled',
+        description: {
+          zh: '每天早上七点之后第一次巡检时结算昨天：抽过就用当时那张，没抽就用「日期 + 固定盐」补录并冻结，同时报出新的一天。',
+          en: 'Once a day at the first tick after 7am: the previous day is settled — the slip drawn that day, or a fixed-salt fill-in when nobody drew — and the new day is announced.',
+        },
+      },
     ],
   },
 };
