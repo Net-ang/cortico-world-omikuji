@@ -20,7 +20,7 @@ import { markReminded, remindedDate } from './remind.ts';
 import { markSettled, settledDate } from './settle.ts';
 import { daysBefore } from './daysalt.ts';
 import { readWording, saveWording } from './wording.ts';
-import { panelInvoke, PANEL_ID, type PanelDeps, type PanelText } from './panel.ts';
+import { HUAJI_PANEL_ID, panelInvoke, PANEL_ID, type PanelDeps, type PanelText } from './panel.ts';
 import type { OmikujiConfigSection } from './config.ts';
 import { OMIKUJI_CONFIG_GROUP } from './config.ts';
 
@@ -241,6 +241,13 @@ export class OmikujiWorld implements World {
           id: PANEL_ID,
           title: chinese ? '今日一签' : "Today's slip",
           description: chinese ? '按下按钮抽今天的签，顺带看这七天。' : "Press the button for today's slip, and the last seven days.",
+        },
+        {
+          id: HUAJI_PANEL_ID,
+          title: chinese ? '转运板' : 'Turn it around',
+          description: chinese
+            ? '抽到凶签时来这里拨开三朵云，把这一天的运气扳回来。不限次数，图一乐。'
+            : 'When the slip comes up unlucky, play a small game here to turn the day around. Unlimited tries, for fun.',
         },
       ],
       invoke: (panel, method, args) => panelInvoke(this.#panelDeps(), panel, method, [...args]),

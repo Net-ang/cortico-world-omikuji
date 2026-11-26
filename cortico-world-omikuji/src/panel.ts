@@ -9,10 +9,17 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { isDateIso, type DailySign, type WordingMode } from './daily.ts';
 import { readDayRecord } from './daysalt.ts';
+import { isBadTier, readHuaji, recordHuaji } from './huaji.ts';
 import { readWordingMonth } from './wording.ts';
 
 /** 本页内的面板 id，`[a-z0-9-]`，不带 World 前缀。 */
 export const PANEL_ID = 'now';
+
+/** 「转运板」那一页的 id：凶签时去那里玩小游戏。 */
+export const HUAJI_PANEL_ID = 'zhuanyun';
+
+/** 全部面板 id。 */
+export const PANEL_IDS = [PANEL_ID, HUAJI_PANEL_ID] as const;
 
 /** 视频主名（不带扩展名）；实际文件可以是 .mp4 / .webm / .mov。 */
 const DRAW_BASE = 'assets/draw';
@@ -33,6 +40,15 @@ const VIDEO_TYPES: Readonly<Record<string, string>> = {
 
 /** 作者头像：优先 `assets/avatar.*`，没有就用包图标 `assets/icon.*`。 */
 const AVATAR_BASES = ['assets/avatar', 'assets/icon'] as const;
+
+/**
+ * 转运板格子上的「云」图案。
+ *
+ * 可以放四朵轮换：`assets/cloud-1.*` … `assets/cloud-4.*`；
+ * 也可以只放一张 `assets/cloud.*`。都没有就退回 CSS 的淡圆环。
+ */
+const CLOUD_BASE = 'assets/cloud';
+const cloudBaseOf = (index: number): string => `assets/cloud-${index}`;
 
 /** 头像与动图背景认这几种位图/矢量。 */
 const IMAGE_TYPES: Readonly<Record<string, string>> = {
@@ -62,6 +78,26 @@ function avatarFile(deps: PanelDeps): { path: string; mime: string } | null {
     }
   }
   return null;
+}
+
+/** 按主名找一个位图/矢量素材；返回路径与 mime。 */
+function imageFile(packageDir: string, base: string): { path: string; mime: string } | null {
+  for (const [ext, mime] of Object.entries(IMAGE_TYPES)) {
+    const path = join(packageDir, `${base}${ext}`);
+    if (existsSync(path)) return { path, mime };
+  }
+  return null;
+}
+
+/** 云图案的流式回执；没有素材就 null（面板退回 CSS 圆环）。 */
+export function panelCloud(
+  deps: PanelDeps,
+  index = 1,
+): { $file: { mime: string; path: string; bytes: number; sha256: string } } | null {
+  // 先找带序号的那一朵，再退回单张，都没有就 null
+  const found = imageFile(deps.packageDir, cloudBaseOf(index)) ?? imageFile(deps.packageDir, CLOUD_BASE);
+  if (!found) return null;
+  return { $file: { mime: found.mime, path: found.path, ...fileFacts(found.path) } };
 }
 
 /** 头像有没有可用素材（只查存在，不读内容）。 */
@@ -147,6 +183,10 @@ export interface PanelSnapshot {
   drawn: boolean;
   /** 今天是不是补录的（没抽，用固定盐定下）。 */
   locked: boolean;
+  /** 这一天是不是凶签（大凶 / 小凶）——凶签才有「逢凶化吉」。 */
+  bad: boolean;
+  /** 这一天是否已经化吉成功（打通小游戏）。 */
+  huaji: boolean;
   /** 今天在最前，往前七天。 */
   recent: PanelDay[];
 }
@@ -310,6 +350,8 @@ export function panelSnapshot(deps: PanelDeps, wanted?: string): PanelSnapshot {
     drawn: settled(deps.today),
     /** 今天是不是补录的。 */
     locked: recordOn(deps.today)?.source === 'fallback',
+    bad: isBadTier(deps.signFor(date).tierId),
+    huaji: readHuaji(deps.dataDir, date) !== null,
     recent: daysBack(deps.today, RECENT_DAYS).map((day) => {
       const locked = settled(day);
       const sign = locked ? deps.signFor(day) : null;
@@ -326,16 +368,59 @@ export function panelSnapshot(deps: PanelDeps, wanted?: string): PanelSnapshot {
   };
 }
 
+/** 「逢凶化吉」那一页的状态：只报这一天的档位与通关情况，不含签文细节。 */
+export interface HuajiStatus {
+  date: string;
+  /** 这一天定下来没有（抽过或已补录）。没定就不给任何数字。 */
+  settled: boolean;
+  /** 是不是凶签；不是凶签就不需要化吉（页面上照旧可以玩，只是不记账）。未定下来时为 false。 */
+  bad: boolean;
+  tierId: string | null;
+  tierLabel: string | null;
+  score: number | null;
+  /** 已经化吉成功过没有。 */
+  done: boolean;
+  /** 首次通关时间；没通关就是 null。 */
+  at: string | null;
+  /** 一共试了几次（含成功那次）；没通关就是 null。 */
+  tries: number | null;
+}
+
+export function huajiStatus(deps: PanelDeps, date: string): HuajiStatus {
+  const record = readHuaji(deps.dataDir, date);
+  const settled = date < deps.today || readDayRecord(deps.dataDir, date) !== null;
+  if (!settled) {
+    // 今天还没抽签：一个数字都不给，连档位都不提
+    return { date, settled: false, bad: false, tierId: null, tierLabel: null, score: null, done: record !== null, at: record?.at ?? null, tries: record?.tries ?? null };
+  }
+  const sign = deps.signFor(date);
+  return {
+    date,
+    settled: true,
+    bad: isBadTier(sign.tierId),
+    tierId: sign.tierId,
+    tierLabel: sign.tierLabel,
+    score: sign.score,
+    done: record !== null,
+    at: record?.at ?? null,
+    tries: record?.tries ?? null,
+  };
+}
+
 /** 缺素材的提醒只报一次：面板每轮快照都会问 video，刷屏会把日志埋掉。 */
 let missingDrawVideoReported = false;
 
 /**
  * 面板方法入口。
  *
- * `snapshot` 只读：打开面板、看七天横排、回看某一天都不摇盐。
- * `draw` 才是抽签——它会给那一天摇一个真随机的盐并落盘。面板上只有「抽今天的签」按钮走这条路。
- * `video` 把抽签动画的 mp4 流式送出去；`background` 送面板的动态背景。两者文件不在时都回
- * `{ absent: true }`，面板据此跳过。
+ * `now` 这一页：
+ * - `snapshot` 只读：打开面板、看七天横排、回看某一天都不摇盐。
+ * - `draw` 才是抽签——它会给那一天摇一个真随机的盐并落盘。
+ * - `video` / `background` / `avatar` 把包内素材流式送出去；文件不在时回 `{ absent: true }`。
+ *
+ * `huaji` 这一页（凶签才有意义）：
+ * - `status` 只读：这一天的档位、是否凶签、是否已经化吉。
+ * - `win` 记账：小游戏通关时调用，**不限次数**，重复调用不会覆盖第一次通关的时间。
  */
 export async function panelInvoke(
   deps: PanelDeps,
@@ -343,7 +428,7 @@ export async function panelInvoke(
   method: string,
   args: unknown[] = [],
 ): Promise<unknown> {
-  if (panel !== PANEL_ID) throw new Error(`没有这个面板：${panel}`);
+  if (panel !== PANEL_ID && panel !== HUAJI_PANEL_ID) throw new Error(`没有这个面板：${panel}`);
 
   if (method === 'video') {
     const file = drawVideo(deps);
@@ -360,6 +445,13 @@ export async function panelInvoke(
   if (method === 'avatar') {
     return panelAvatar(deps) ?? { absent: true };
   }
+  if (method === 'cloud') {
+    const index = args[0] === undefined ? 1 : args[0];
+    if (typeof index !== 'number' || !Number.isInteger(index) || index < 1) {
+      throw new TypeError('云图的序号必须是 ≥1 的整数');
+    }
+    return panelCloud(deps, index) ?? { absent: true };
+  }
 
   const wanted = args[0];
   if (wanted !== undefined && typeof wanted !== 'string') throw new TypeError('日期必须是字符串');
@@ -368,6 +460,21 @@ export async function panelInvoke(
   // 未来的日子还没有签：面板同样不给看、也不给抽
   if (date > deps.today) {
     throw new RangeError(`${date} 还没到，不能看也不能抽（今天是 ${deps.today}）。`);
+  }
+
+  if (panel === HUAJI_PANEL_ID) {
+    if (method === 'status') return huajiStatus(deps, date);
+    if (method === 'win') {
+      const tries = args[1];
+      if (tries !== undefined && (typeof tries !== 'number' || !Number.isFinite(tries) || tries < 1)) {
+        throw new TypeError('tries 必须是 ≥1 的数字');
+      }
+      // 只给「已定下来的凶签」记账：没抽的、不凶的日子想玩就玩，但不往主面板挂标签
+      if (!huajiStatus(deps, date).bad) return huajiStatus(deps, date);
+      recordHuaji(deps.dataDir, date, new Date().toISOString(), Math.round(tries ?? 1));
+      return huajiStatus(deps, date);
+    }
+    throw new Error(`转运板没有这个方法：${method}`);
   }
 
   if (method === 'snapshot') return panelSnapshot(deps, date);

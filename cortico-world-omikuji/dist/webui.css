@@ -691,3 +691,196 @@
   letter-spacing: 0.02em;
   user-select: none;
 }
+
+/* ------------------------------------------------------------------ 转运板 */
+
+/* 主面板凶签后面那枚金色小标签：转运成功的成就 */
+.om-tag-gold {
+  background: linear-gradient(180deg, #eccd8f, #d3a95f);
+  color: #2a2118;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+/* 还没转运时的引导标签：淡金虚线，不当成就 */
+.om-tag-hint {
+  background: rgba(224, 189, 124, 0.14);
+  border: 1px dashed var(--om-gold-dim);
+  color: var(--om-gold);
+}
+
+/* 页里的大号金色徽记 */
+.om-badge {
+  margin: 0;
+  font-size: 1.714em;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: #f0d49a;
+  text-shadow: 0 0 18px rgba(224, 189, 124, 0.45);
+}
+
+.om-hint {
+  margin: 0;
+  font-size: 1.286em;
+  line-height: 1.6;
+  color: var(--om-ink-dim);
+}
+
+.om-board {
+  display: flex;
+  flex-direction: column;
+  gap: 0.86em;
+}
+
+.om-board-bar {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1em;
+  flex-wrap: wrap;
+}
+
+.om-board-hint {
+  font-size: 1.286em;
+  line-height: 1.6;
+  color: var(--om-ink-soft);
+}
+
+.om-board-taps {
+  font-size: 1.429em;
+  font-variant-numeric: tabular-nums;
+  color: var(--om-gold);
+  white-space: nowrap;
+}
+
+/* 九宫格：三列等宽，格子是方的一比一 */
+.om-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.43em;
+  /* 格子整体收一档：最宽 20em（≈280px）并居中，字不动——格子小、字大 */
+  width: min(100%, 35.5em);
+  margin-inline: auto;
+}
+
+.om-tile {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1 / 1;
+  padding: 0.14em;
+  font: inherit;
+  font-size: 2em;
+  text-align: center;
+  border: 1px solid var(--om-hair-soft);
+  border-radius: var(--radius-md, 9px);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--om-ink-dim);
+  cursor: pointer;
+  text-shadow: none;
+  transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
+}
+
+/*
+ * 未翻开的图案：一枚很淡的圆环 + 一点柔光。
+ * 不用汉字——牌面上写字会显得像表格，一格一枚记号就够了。
+ */
+.om-tile::before {
+  content: '';
+  width: 0.85em;
+  height: 0.85em;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  opacity: 0.3;
+  box-shadow: 0 0 0.5em rgba(224, 189, 124, 0.18);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+/*
+ * 包里有云图时：圆环换成云纹，每格按 data-cloud 轮换四朵之一。
+ * 取不到的序号会退回第一朵（客户端只在真的取到时才打 data-cloud）。
+ */
+.om-shell[data-cloud] .om-tile::before {
+  width: 3.714em;
+  height: 3.714em;
+  border-color: transparent;
+  box-shadow: none;
+  opacity: 0.8;
+  background: var(--om-cloud-1) center / contain no-repeat;
+}
+
+.om-shell[data-cloud] .om-tile[data-cloud="2"]::before { background-image: var(--om-cloud-2, var(--om-cloud-1)); }
+.om-shell[data-cloud] .om-tile[data-cloud="3"]::before { background-image: var(--om-cloud-3, var(--om-cloud-1)); }
+.om-shell[data-cloud] .om-tile[data-cloud="4"]::before { background-image: var(--om-cloud-4, var(--om-cloud-1)); }
+
+.om-shell[data-cloud] .om-tile:hover::before {
+  opacity: 1;
+}
+
+.om-tile:hover::before {
+  opacity: 0.55;
+  transform: scale(1.06);
+}
+
+.om-tile:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: var(--om-gold-dim);
+}
+
+.om-tile:active {
+  transform: scale(0.97);
+}
+
+/* 翻到了：一枚金色 ✦，圆环退场 */
+.om-tile-hit::before,
+.om-tile-miss::before,
+.om-tile-reveal::before {
+  display: none;
+}
+
+.om-tile-hit {
+  border-color: var(--om-gold);
+  background: radial-gradient(circle at 50% 40%, rgba(240, 212, 154, 0.35), rgba(224, 189, 124, 0.12));
+  color: #fff6e2;
+  font-weight: 600;
+  text-shadow: 0 0 16px rgba(224, 189, 124, 0.6);
+}
+
+/* 翻空了：一句小字「这里什么也没有」 */
+.om-tile-miss {
+  border-style: dashed;
+  color: var(--om-ink-dim);
+  opacity: 0.5;
+  font-size: 0.55em;
+  line-height: 1.35;
+  letter-spacing: 0.01em;
+}
+
+/* 失败时把剩下的「吉」亮出来 */
+.om-tile-reveal {
+  border-color: var(--om-gold-dim);
+  color: var(--om-gold);
+  opacity: 0.8;
+}
+
+/* 弹窗里的按钮排 */
+.om-dialog-actions {
+  display: flex;
+  gap: 0.57em;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.om-more-title {
+  margin: 0;
+  font-size: 1.357em;
+  font-weight: 600;
+  color: var(--om-gold);
+  letter-spacing: 0.04em;
+}
+
+/* 转运板这一页的卡片主句比别处大一档；「今日一签」的封牌提示保持原样 */
+.om-shell[data-page="zhuanyun"] .om-face-lead {
+  font-size: 1.286em;
+}

@@ -133,7 +133,21 @@ test('挂载事件走 piggyback；今天没抽过时一个字都不提分数', a
     assert.equal(started.event.origin, 'internal');
     assert.deepEqual(started.opts, { trigger: 'piggyback' }, '内部事件默认 flush 会每轮白跑一次');
     assert.match(started.event.text, /还没抽签/);
-    assert.doesNotMatch(started.event.text, /\d+ ?分/, '没抽的时候报分数，抽完就会自相矛盾');
+    /*
+     * 「今天没抽就不报分数」这条只管**今天**。挂载事件里可能还跟着一句昨天结算
+     * （昨天是过去的日子、已经定死，报分数是对的），所以按行拆开分别断言。
+     */
+    const [todayLine, ...settleLines] = started.event.text.split('\n');
+    assert.doesNotMatch(todayLine!, /\d+ ?分/, '今天没抽就不该报分数，否则抽完会自相矛盾');
+    const mountDate = world.signFor().date;
+    const yesterday = new Date(Date.parse(`${mountDate}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
+    for (const line of settleLines) {
+      assert.match(line, /昨天/, `结算行必须说的是昨天，实际是：${line}`);
+      const lot = /第 (\d+) 签/.exec(line);
+      if (lot) {
+        assert.equal(Number(lot[1]), world.signFor(yesterday).lot, '结算行报的签号必须是昨天那一张，不能是今天的');
+      }
+    }
 
     // 抽签之后分数才定下来，这时才允许出现在事件里
     const drawn = world.drawFor();

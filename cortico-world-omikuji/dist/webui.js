@@ -9,7 +9,7 @@
  */
 
 /** 面板构建号：页脚里淡淡地写出来，装错/缓存旧版时一眼能看出来。 */
-const BUILD = '0.4.13';
+const BUILD = '0.5.4';
 
 const TEXT = {
   zh: {
@@ -42,6 +42,27 @@ const TEXT = {
     more: '更多…',
     moreText: '过去的事无可挽回，你能做的只有着眼当下和期待未来',
     moreClose: '好',
+    // 转运板
+    zyTitle: '转运板',
+    zyLeadBad: '这一签有点沉。拨开三朵云，把今天扳回来。',
+    zyLeadCalm: '今天这一签不凶，用不着转运 —— 想玩也可以玩玩。',
+    zyBadge: '逢凶化吉',
+    zyHint: '这一签偏凶 —— 去「转运板」把它扳回来。',
+    zyTaps: '还剩',
+    zyTapsUnit: '次',
+    zyAlready: '已经转运成功过',
+    zyAgain: '再玩一次',
+    zyStart: '开始',
+    zyWinTitle: '化吉成功！',
+    zyWinBody: '三朵云都拨开了，这一签已经被你扳回来。主面板上会挂一枚金色的「逢凶化吉」。',
+    zyWinClose: '好',
+    zyLoseTitle: '差一点',
+    zyLoseBody: '不要气馁，运气这东西越较真越跑。再来一次就是了。',
+    zyLoseRetry: '再来一次',
+    zyLoseLater: '先这样',
+    zyTileJi: '吉',
+    zyTileEmpty: '这里什么也没有',
+    zyLegend: '九片里藏着三枚「吉」，五次之内把它们全翻出来。',
     disclaimer: '相信科学，仅供娱乐参考。',
     failed: '没抽成',
     sealMark: '封',
@@ -82,6 +103,26 @@ const TEXT = {
     more: 'More…',
     moreText: 'What is past cannot be undone. All that is left to you is to face the present and look forward to what comes.',
     moreClose: 'Close',
+    // 转运板
+    zyTitle: 'Turn it around',
+    zyLeadBad: 'This slip sits heavy. Clear three clouds and turn the day around.',
+    zyLeadCalm: "Today's slip is not unlucky — nothing to turn around. Play anyway if you like.",
+    zyBadge: 'Turned around',
+    zyHint: 'This slip leans unlucky — head to the board and turn it around.',
+    zyTaps: 'Taps left',
+    zyTapsUnit: '',
+    zyAlready: 'Already turned around',
+    zyAgain: 'Play again',
+    zyStart: 'Start',
+    zyWinTitle: 'Turned around!',
+    zyWinBody: 'All three clouds are cleared and the slip is yours again. A gold badge now sits on the slip.',
+    zyWinClose: 'Nice',
+    zyLoseTitle: 'So close',
+    zyLoseBody: 'No need to sulk — luck sulks back. Just try again.',
+    zyLoseRetry: 'Try again',
+    zyLoseLater: 'Later',
+    zyTileEmpty: 'nothing here',
+    zyLegend: 'Three of the nine hide a 「吉」. Find all three within five taps.',
     disclaimer: 'For fun only. Nothing here predicts anything.',
     failed: 'Draw failed',
     sealMark: 'sealed',
@@ -332,6 +373,15 @@ export default {
             el('span', 'om-score', `${s.sign.score} 分`),
           );
           if (s.date !== s.today) top.append(el('span', 'om-tag', `${T.lookBack} ${shortDate(s.date)}`));
+          /*
+           * 凶签：转运成功就挂一枚金色小标签「逢凶化吉」；还没转运就给一句引导，
+           * 告诉用户去哪儿把这天的运气扳回来（标签是成就，页名是地方，两者不冲突）。
+           */
+          if (s.bad) {
+            top.append(s.huaji
+              ? el('span', 'om-tag om-tag-gold', `✦ ${T.zyBadge}`)
+              : el('span', 'om-tag om-tag-hint', T.zyHint));
+          }
           card.append(top);
 
           const body = el('div', 'om-card-body');
@@ -486,6 +536,252 @@ export default {
 
         // 开屏就先取一次快照：背景、头像、字体、七天横排都不必等抽签才出现
         await load(undefined, null, null);
+      },
+    },
+    /*
+     * 「转运板」：凶签才用得上的一页。
+     *
+     * 小游戏 = 九片云里藏着三枚「吉」，五次之内全翻出来。**不限次数**，失败随时重来；
+     * 通关就记一笔（服务端只给「已定下来的凶签」记账），主面板会在凶签后面挂一枚
+     * 金色「逢凶化吉」。整套就是图一乐，不设失败惩罚、不留记录。
+     */
+    zhuanyun: {
+      async mount(ctx) {
+        const T = text(ctx.language);
+
+        const shell = el('div', 'om-shell');
+        if (shell.dataset) shell.dataset.page = 'zhuanyun';
+        const app = el('div', 'om-app');
+        const head = el('header', 'om-head');
+        const meta = el('p', 'om-meta', '');
+        head.append(el('h1', 'om-title', T.zyTitle), meta);
+        const lead = el('p', 'om-intro');
+        const stage = el('section', 'om-stage');
+        app.append(head, lead, stage);
+        shell.append(app);
+        ctx.root.append(shell);
+
+        /*
+         * 云图案：包里放四朵（assets/cloud-1..4）就轮换着用，只放一张也行。
+         * 一张都取不到时退回 CSS 的淡圆环，不会出现破图。
+         */
+        const CLOUDS = 4;
+        const startCloud = async () => {
+          if (!ctx.invokeBinary) return;
+          let loaded = 0;
+          for (let i = 1; i <= CLOUDS; i += 1) {
+            try {
+              const blob = await ctx.invokeBinary('cloud', [i]);
+              if (!blob || !/^image\//.test(blob.type ?? '')) continue;
+              const url = window.URL.createObjectURL(blob);
+              shell.style.setProperty('--om-cloud-' + i, 'url("' + url + '")');
+              if (ctx.signal) ctx.signal.addEventListener('abort', () => window.URL.revokeObjectURL(url), { once: true });
+              loaded += 1;
+            } catch {
+              // 这一朵取不到就用不到，继续下一朵
+            }
+          }
+          if (loaded > 0) shell.dataset.cloud = String(loaded);
+        };
+
+        const TILES = 9;
+        const HITS = 3;
+        const TAPS = 5;
+
+        let status = null;
+        let round = 0;        // 第几次尝试
+        let tapsUsed = 0;
+        let found = 0;
+        let hidden = new Set();
+        let playing = false;
+
+        /** 一层暗幕弹窗：成功/失败都用它。button 数组给「关掉/再来一次」这类出口。 */
+        const showDialog = (title, body, buttons) => {
+          const layer = el('div', 'om-more');
+          layer.tabIndex = -1;
+          const card = el('div', 'om-more-card');
+          card.append(el('p', 'om-more-title', title), el('p', 'om-more-text', body));
+          const row = el('div', 'om-dialog-actions');
+          for (const [label, onClick, primary] of buttons) {
+            const button = el('button', primary ? 'om-btn om-btn-primary' : 'om-btn', label);
+            button.type = 'button';
+            button.addEventListener('click', () => {
+              if (typeof layer.remove === 'function') layer.remove();
+              if (onClick) onClick();
+            }, { signal: ctx.signal });
+            row.append(button);
+          }
+          card.append(row);
+          layer.append(card);
+          shell.append(layer);
+          if (typeof layer.focus === 'function') layer.focus();
+        };
+
+        /** 洗一副九格的牌：随机挑三格藏「吉」。客户端随机，跟抽签的种子无关。 */
+        const deal = () => {
+          const pool = Array.from({ length: TILES }, (_, i) => i);
+          for (let i = pool.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [pool[i], pool[j]] = [pool[j], pool[i]];
+          }
+          hidden = new Set(pool.slice(0, HITS));
+          tapsUsed = 0;
+          found = 0;
+          playing = true;
+        };
+
+        const renderBoard = () => {
+          stage.replaceChildren();
+          const board = el('div', 'om-board');
+
+          const bar = el('div', 'om-board-bar');
+          bar.append(
+            el('span', 'om-board-hint', T.zyLegend),
+            el('span', 'om-board-taps', `${T.zyTaps} ${TAPS - tapsUsed} ${T.zyTapsUnit}`),
+          );
+          board.append(bar);
+
+          const grid = el('div', 'om-grid');
+          for (let i = 0; i < TILES; i += 1) {
+            // 未翻开的格子不放文字：图案由 CSS 的 ::before 画一枚淡圆环
+            const tile = el('button', 'om-tile');
+            if (tile.dataset) tile.dataset.cloud = String((i % CLOUDS) + 1);
+            tile.type = 'button';
+            tile.addEventListener('click', () => onTap(i, tile, grid), { signal: ctx.signal });
+            grid.append(tile);
+          }
+          board.append(grid);
+          stage.append(board);
+        };
+
+        const finishRound = async (won) => {
+          playing = false;
+          if (won) {
+            round += 1;
+            try {
+              status = await ctx.invoke('win', [status && status.date ? status.date : undefined, round]);
+            } catch {
+              // 记账失败不影响“通关了”这件事本身
+            }
+            showDialog(T.zyWinTitle, T.zyWinBody, [[T.zyWinClose, () => void load(), true]]);
+            return;
+          }
+          showDialog(T.zyLoseTitle, T.zyLoseBody, [
+            [T.zyLoseRetry, () => { round += 1; deal(); renderBoard(); }, true],
+            [T.zyLoseLater, () => void load()],
+          ]);
+        };
+
+        const onTap = (index, tile, grid) => {
+          if (!playing) return;
+          if (tile.dataset && tile.dataset.open === '1') return;
+          tapsUsed += 1;
+          if (tile.dataset) tile.dataset.open = '1';
+
+          if (hidden.has(index)) {
+            found += 1;
+            tile.className = 'om-tile om-tile-hit';
+            tile.textContent = T.zyTileJi;
+          } else {
+            tile.className = 'om-tile om-tile-miss';
+            tile.textContent = T.zyTileEmpty;   // 空格：这里什么都没有
+          }
+
+          const left = TAPS - tapsUsed;
+          const tapsNode = board_tapsNode(grid);
+          if (tapsNode) tapsNode.textContent = `${T.zyTaps} ${left} ${T.zyTapsUnit}`;
+
+          if (found >= HITS) void finishRound(true);
+          else if (left <= 0) {
+            // 时间到了：把剩下的「吉」亮出来，让人知道差在哪儿
+            let i = 0;
+            for (const child of grid.children ?? []) {
+              if (hidden.has(i) && (!child.dataset || child.dataset.open !== '1')) {
+                child.className = 'om-tile om-tile-reveal';
+                child.textContent = T.zyTileJi;
+              }
+              i += 1;
+            }
+            void finishRound(false);
+          }
+        };
+
+        /** 从棋盘里找回「还剩几次」那一格。桩环境里没有 closest，只能手找。 */
+        const board_tapsNode = (node) => {
+          const walk = (current) => {
+            if (!current) return null;
+            if ((current.className ?? '') === 'om-board-taps') return current;
+            for (const child of current.children ?? []) {
+              const hit = walk(child);
+              if (hit) return hit;
+            }
+            return null;
+          };
+          return walk(stage);
+        };
+
+        /** 状态 1/2：还没抽签、或者抽到的不是凶签。 */
+        const renderCalm = (settled, bad) => {
+          stage.replaceChildren();
+          const box = el('div', 'om-face');
+          if (!settled) {
+            box.append(el('p', 'om-face-lead', '今天还没抽签 —— 抽了才知道要不要转运。'));
+            box.append(el('p', 'om-hint', '去「今日一签」抽一张，凶的话再回来。'));
+            stage.append(box);
+            return;
+          }
+          box.append(el('p', 'om-face-lead', T.zyLeadCalm));
+          const free = el('button', 'om-btn', `${T.zyStart}（${T.zyAgain}）`);
+          free.type = 'button';
+          free.addEventListener('click', () => { deal(); renderBoard(); }, { signal: ctx.signal });
+          box.append(free);
+          stage.append(box);
+        };
+
+        const load = async () => {
+          try {
+            status = await ctx.invoke('status', []);
+          } catch (err) {
+            stage.replaceChildren();
+            const box = el('div', 'om-face');
+            box.append(el('p', 'om-err', `转运板没打开：${err && err.message ? err.message : String(err)}`));
+            stage.append(box);
+            return;
+          }
+          const s = status;
+          meta.textContent = s.settled ? `${s.date} · ${s.tierLabel} · ${s.score} 分` : s.date;
+
+          if (!s.settled) {
+            lead.textContent = '';
+            renderCalm(false, false);
+            return;
+          }
+          if (!s.bad) {
+            lead.textContent = T.zyLeadCalm;
+            renderCalm(true, false);
+            return;
+          }
+          lead.textContent = T.zyLeadBad;
+          if (s.done) {
+            // 已经转运过：金色标签 + 再玩一次
+            stage.replaceChildren();
+            const box = el('div', 'om-face');
+            const badge = el('p', 'om-badge', `✦ ${T.zyBadge}`);
+            box.append(badge);
+            box.append(el('p', 'om-face-lead', s.tries ? `${T.zyAlready}（第 ${s.tries} 次）` : T.zyAlready));
+            const again = el('button', 'om-btn om-btn-primary', T.zyAgain);
+            again.type = 'button';
+            again.addEventListener('click', () => { deal(); renderBoard(); }, { signal: ctx.signal });
+            box.append(again);
+            stage.append(box);
+            return;
+          }
+          deal();
+          renderBoard();
+        };
+
+        void startCloud();
+        await load();
       },
     },
   },
